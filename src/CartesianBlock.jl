@@ -52,6 +52,8 @@ struct Layout
     num_interior_cells_y::UInt64
     cell_width_x::Float64
     cell_width_y::Float64
+    mesh_x::Array{Float64, 1}
+    mesh_y::Array{Float64, 1}
 end
 
 mutable struct Simulation_Block

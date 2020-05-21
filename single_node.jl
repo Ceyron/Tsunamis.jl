@@ -9,43 +9,34 @@ using Printf
 #Plots.plotlyjs()
 
 include("src/CartesianBlock.jl")
+include("src/single_node_setup.jl")
+include("src/writer.jl")
 
-struct Time_Mesh
-    time_end::Float64
-    num_checkpoints::Float64
-    time_nodes::Array{Float64, 1}
-end
-
-# The main simulation data structure
-#
-# Contains the current struct which is mutated over the course of the simulation
-# as well as the required history of the saved structs over the course of the
-# simulation
-mutable struct SWE_Simulation
-    current::Simulation_Block
-    checkpoint_fields::Array{SWE_Fields, 1}
-    time_mesh::Time_Mesh
-end
 
 # Some stub constants for the simulation, has to be set by command-line options
 # later on
-const size_x = 5000;
-const size_y = 5000;
+const offset_x = 0.;
+const offset_y = 0.;
+const size_x = 5000.;
+const size_y = 5000.;
 const num_cells_x = 50;
 const num_cells_y = 50;
-const time_end = 15;
+const time_end = 15.;
 const num_checkpoints = 20;
+const output_name = "single_run"
 
 function main()
-    println("Hello World");
+    println()
+    println("Welcome to the SWE solver using Julia")
+    println()
 
     # Instantiate main block
     simulation_single_node = SWE_Simulation(
         Simulation_Block(
             Layout(
                 # No offset since it is single block in a sequential implementation
-                0.0,
-                0.0,
+                offset_x,
+                offset_y,
                 # Set the size of the simulation domain (halo cells do not count
                 # towards this)
                 size_x,
@@ -56,6 +47,9 @@ function main()
                 # Calculate and set the cell widths
                 size_x / num_cells_x,
                 size_y /num_cells_y,
+                # Create the mesh, for N interior cells we have N+1 edges in each direction
+                range(offset_x, offset_x+size_x; length=num_cells_x),
+                range(offset_y, offset_y+size_y; length=num_cells_y),
             ),
             SWE_Fields(
                 # Account for the additional halo layers of the boundary
@@ -88,9 +82,6 @@ function main()
                 ),
             ),
         ),
-        # Preallocate the space required to save all 3 fields at every
-        # checkpoint
-        Array{SWE_Fields, 1}(undef, num_checkpoints),
         # Contains information on the time integration
         Time_Mesh(
             time_end,
@@ -99,13 +90,19 @@ function main()
         ),
     )
 
+    # Instantiate the container for all the selected simulation settings
+    simulation_settings = SWE_Simulation_Settings(
+        output_name,
+    )
+
+    # Create the netCDF file
+    nc_data_set = create_output_file(simulation_settings, simulation_single_node)
+
     # Imprint the initial condition
     simulation_single_node.current.fields.h[22:28, 22:28] .= 3.0
 
-    # Copy the initial state into the checkpoints state for reference
-    simulation_single_node.checkpoint_fields[1] = deepcopy(
-        simulation_single_node.current.fields
-    )
+    # Write the initial state to the cdf file
+    write_fields!(nc_data_set, simulation_single_node, 1)
 
     # Print the head
     println("Welcome to SWE solver on julia")
@@ -142,7 +139,6 @@ function main()
         # Integrate until next checkpoint is reached
         while simulation_single_node.current.time <
                 simulation_single_node.time_mesh.time_nodes[i_checkpoint]
-            println("$(simulation_single_node.current.time)")
             # (1) set values in ghost layer
 
             # (2) Compute numerical fluxes
@@ -157,8 +153,13 @@ function main()
             simulation_single_node.current.time += time_step
             
         end
+
+        # Save the fields
+        write_fields!(nc_data_set, simulation_single_node, i_checkpoint)
     end
 
+    # Close the connection to the dataset handle
+    close_output_file(nc_data_set)
 
 
 
