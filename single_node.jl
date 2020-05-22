@@ -11,6 +11,7 @@ using Printf
 include("src/CartesianBlock.jl")
 include("src/single_node_setup.jl")
 include("src/writer.jl")
+include("src/godunov.jl")
 
 
 # Some stub constants for the simulation, has to be set by command-line options
@@ -23,7 +24,8 @@ const num_cells_x = 50;
 const num_cells_y = 50;
 const time_end = 15.;
 const num_checkpoints = 20;
-const output_name = "single_run"
+const output_name = "single_run";
+const cfl_number = 0.4;
 
 function main()
     println()
@@ -93,6 +95,7 @@ function main()
     # Instantiate the container for all the selected simulation settings
     simulation_settings = SWE_Simulation_Settings(
         output_name,
+        cfl_number,
     )
 
     # Create the netCDF file
@@ -108,29 +111,7 @@ function main()
     println("Welcome to SWE solver on julia")
     println("time|todo")
 
-    # Instantiate the flux field struct to be used over the iterations
-    fluxes = Fluxes(
-        Flux_Field(
-            zeros(num_cells_x, num_cells_y),
-            zeros(num_cells_x, num_cells_y),
-            zeros(num_cells_x, num_cells_y),
-            zeros(num_cells_x, num_cells_y),
-        ),
-        Flux_Field(
-            zeros(num_cells_x, num_cells_y),
-            zeros(num_cells_x, num_cells_y),
-            zeros(num_cells_x, num_cells_y),
-            zeros(num_cells_x, num_cells_y),
-        ),
-        Flux_Field(
-            zeros(num_cells_x, num_cells_y),
-            zeros(num_cells_x, num_cells_y),
-            zeros(num_cells_x, num_cells_y),
-            zeros(num_cells_x, num_cells_y),
-        ),
-        # The max wave speed standard value
-        0.0,
-    )
+
 
     # Iterate over all checkpoints
     for i_checkpoint in 2:num_checkpoints
@@ -139,19 +120,42 @@ function main()
         # Integrate until next checkpoint is reached
         while simulation_single_node.current.time <
                 simulation_single_node.time_mesh.time_nodes[i_checkpoint]
+            # Instantiate the flux field struct to be used over the iterations, they
+            # contain the accumulated (~= cummulative) fluxes summed up from the fluxes
+            # over each edge For loop convenience in the update routines we also
+            # calculate flux summations for the halo cells (bottom and left) even though they are not
+            # updated
+            fluxes = SWE_Fields(
+                zeros(num_cells_x + 1, num_cells_y + 1),
+                zeros(num_cells_x + 1, num_cells_y + 1),
+                zeros(num_cells_x + 1, num_cells_y + 1),
+            )
+
+            # The maximum wave speed is relevant for the CFL condition
+            max_wave_speed = 0.0
+
             # (1) set values in ghost layer
+            # TODO
 
             # (2) Compute numerical fluxes
+            max_wave_speed = calculate_numerical_fluxes!(
+                fluxes,
+                simulation_single_node
+            )
 
             # (3) Calculate the new time step (maximum allows time_step due to
             # the wave speeds)
-            time_step = 0.5
+            time_step = compute_max_time_step(
+                simulation_single_node,
+                max_wave_speed,
+                simulation_settings.clf_number,
+            )
 
-            # (4) Update the cell values Gudonov style first order
+            # (4) Update the cell values Godunov style first order
+            update_cells!(simulation_single_node, fluxes, time_step)
 
             # (5) Refresh to current simulation time
             simulation_single_node.current.time += time_step
-            
         end
 
         # Save the fields

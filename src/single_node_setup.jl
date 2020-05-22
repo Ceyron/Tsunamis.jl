@@ -17,4 +17,5 @@ end
 
 struct SWE_Simulation_Settings
     output_file_name::AbstractString
+    clf_number::Float64
 end

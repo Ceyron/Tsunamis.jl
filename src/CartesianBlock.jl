@@ -63,20 +63,3 @@ mutable struct Simulation_Block
     bathymetry::Array{Float64, 2}
     boundaries::Boundary_Collection
 end
-
-# Contains 4 arrays of the same size as the simulation domain that contain the
-# numerical fluxes at the respective edges
-mutable struct Flux_Field
-    left::Array{Float64, 2}
-    top::Array{Float64, 2}
-    right::Array{Float64, 2}
-    bottom::Array{Float64, 2}
-end
-
-# Contains all the fluxes for a simulation block
-mutable struct Fluxes
-    h::Flux_Field
-    hu::Flux_Field
-    hv::Flux_Field
-    max_wave_speed::Float64
-end
