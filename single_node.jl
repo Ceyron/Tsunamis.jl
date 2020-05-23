@@ -12,16 +12,15 @@ include("src/CartesianBlock.jl")
 include("src/single_node_setup.jl")
 include("src/writer.jl")
 include("src/godunov.jl")
+include("scenario/radial_dam_break.jl")
 
 
 # Some stub constants for the simulation, has to be set by command-line options
 # later on
 const offset_x = 0.;
 const offset_y = 0.;
-const size_x = 5000.;
-const size_y = 5000.;
-const num_cells_x = 50;
-const num_cells_y = 50;
+const num_cells_x = 100;
+const num_cells_y = 100;
 const time_end = 15.;
 const num_checkpoints = 20;
 const output_name = "single_run";
@@ -32,6 +31,9 @@ function main()
     println("Welcome to the SWE solver using Julia")
     println("-------------------------------------")
 
+    # Get the size of the simulation domain
+    domain_size_x, domain_size_y = radial_dam_break_get_domain_size()
+
     # Instantiate main block
     simulation_single_node = SWE_Simulation(
         Simulation_Block(
@@ -41,17 +43,17 @@ function main()
                 offset_y,
                 # Set the size of the simulation domain (halo cells do not count
                 # towards this)
-                size_x,
-                size_y,
+                domain_size_x,
+                domain_size_y,
                 # Set number of interior cells
                 num_cells_x,
                 num_cells_y,
                 # Calculate and set the cell widths
-                size_x / num_cells_x,
-                size_y /num_cells_y,
+                domain_size_x / num_cells_x,
+                domain_size_y /num_cells_y,
                 # Create the mesh, for N interior cells we have N+1 edges in each direction
-                range(offset_x, offset_x+size_x; length=num_cells_x),
-                range(offset_y, offset_y+size_y; length=num_cells_y),
+                range(offset_x, offset_x+domain_size_x; length=num_cells_x),
+                range(offset_y, offset_y+domain_size_y; length=num_cells_y),
             ),
             SWE_Fields(
                 # Account for the additional halo layers of the boundary
@@ -102,8 +104,7 @@ function main()
     nc_data_set = create_output_file(simulation_settings, simulation_single_node)
 
     # Imprint the initial condition
-    simulation_single_node.current.fields.h .= 10.0
-    simulation_single_node.current.fields.h[22:28, 22:28] .= 15.0
+    radial_dam_break_imprint_initial_condition!(simulation_single_node)
 
     # Write the initial state to the cdf file
     write_fields!(nc_data_set, simulation_single_node, 1)
@@ -150,7 +151,6 @@ function main()
                 max_wave_speed,
                 simulation_settings.clf_number,
             )
-            println("Timestep $time_step")
 
             # (4) Update the cell values Godunov style first order
             update_cells!(simulation_single_node, fluxes, time_step)
@@ -175,4 +175,5 @@ function main()
 end
 
 
+# Start the main function
 main()
