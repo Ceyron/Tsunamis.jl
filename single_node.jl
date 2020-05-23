@@ -30,7 +30,7 @@ const cfl_number = 0.4;
 function main()
     println()
     println("Welcome to the SWE solver using Julia")
-    println()
+    println("-------------------------------------")
 
     # Instantiate main block
     simulation_single_node = SWE_Simulation(
@@ -102,15 +102,11 @@ function main()
     nc_data_set = create_output_file(simulation_settings, simulation_single_node)
 
     # Imprint the initial condition
-    simulation_single_node.current.fields.h[22:28, 22:28] .= 3.0
+    simulation_single_node.current.fields.h .= 10.0
+    simulation_single_node.current.fields.h[22:28, 22:28] .= 15.0
 
     # Write the initial state to the cdf file
     write_fields!(nc_data_set, simulation_single_node, 1)
-
-    # Print the head
-    println("Welcome to SWE solver on julia")
-    println("time|todo")
-
 
 
     # Iterate over all checkpoints
@@ -120,15 +116,19 @@ function main()
         # Integrate until next checkpoint is reached
         while simulation_single_node.current.time <
                 simulation_single_node.time_mesh.time_nodes[i_checkpoint]
+            println("Simulating at time $(simulation_single_node.current.time)",
+                "/$(simulation_single_node.time_mesh.time_end)")            
+
+
             # Instantiate the flux field struct to be used over the iterations, they
             # contain the accumulated (~= cummulative) fluxes summed up from the fluxes
             # over each edge For loop convenience in the update routines we also
             # calculate flux summations for the halo cells (bottom and left) even though they are not
             # updated
             fluxes = SWE_Fields(
-                zeros(num_cells_x + 1, num_cells_y + 1),
-                zeros(num_cells_x + 1, num_cells_y + 1),
-                zeros(num_cells_x + 1, num_cells_y + 1),
+                zeros(num_cells_x + 2, num_cells_y + 2),
+                zeros(num_cells_x + 2, num_cells_y + 2),
+                zeros(num_cells_x + 2, num_cells_y + 2),
             )
 
             # The maximum wave speed is relevant for the CFL condition
@@ -150,6 +150,7 @@ function main()
                 max_wave_speed,
                 simulation_settings.clf_number,
             )
+            println("Timestep $time_step")
 
             # (4) Update the cell values Godunov style first order
             update_cells!(simulation_single_node, fluxes, time_step)
@@ -159,8 +160,11 @@ function main()
         end
 
         # Save the fields
+        println("-> Saving Fields")
         write_fields!(nc_data_set, simulation_single_node, i_checkpoint)
     end
+
+
 
     # Close the connection to the dataset handle
     close_output_file(nc_data_set)

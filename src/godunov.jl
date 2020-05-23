@@ -42,12 +42,12 @@ function calculate_numerical_fluxes!(
             flux_h_left, flux_h_right,
             flux_hu_left, flux_hu_right,
             max_edge_speed = solve_riemann_hlle(
-                simulation_data.current.fields.h[i][j],
-                simulation_data.current.fields.h[i+1][j],
-                simulation_data.current.fields.hu[i][j],
-                simulation_data.current.fields.hu[i+1][j],
-                simulation_data.current.bathymetry[i][j],
-                simulation_data.current.bathymetry[i+1][j],
+                simulation_data.current.fields.h[i, j],
+                simulation_data.current.fields.h[i+1, j],
+                simulation_data.current.fields.hu[i, j],
+                simulation_data.current.fields.hu[i+1, j],
+                simulation_data.current.bathymetry[i, j],
+                simulation_data.current.bathymetry[i+1, j],
             )
 
             # Update the accumulated fluxes of the cells adjacent to the right
@@ -74,25 +74,25 @@ function calculate_numerical_fluxes!(
             flux_h_bottom, flux_h_top,
             flux_hv_bottom, flux_hu_top,
             max_edge_speed = solve_riemann_hlle(
-                simulation_data.current.fields.h[i][j],
-                simulation_data.current.fields.h[i][j+1],
-                simulation_data.current.fields.hv[i][j],
-                simulation_data.current.fields.hv[i][j+1],
-                simulation_data.current.bathymetry[i][j],
-                simulation_data.current.bathymetry[i][j+1],
+                simulation_data.current.fields.h[i, j],
+                simulation_data.current.fields.h[i, j+1],
+                simulation_data.current.fields.hv[i, j],
+                simulation_data.current.fields.hv[i, j+1],
+                simulation_data.current.bathymetry[i, j],
+                simulation_data.current.bathymetry[i, j+1],
             )
 
             # Update the accumulated fluxes of the cells adjacent to the top
             # edge (i.e. the current aiding iterating cell and the one on top of
             # it)
             # TODO: Don't we have to divide by cell_width_x because we need the length of the edge?!
-            numerical_fluxes.h[i][j] +=
+            numerical_fluxes.h[i, j] +=
                 flux_h_bottom / simulation_data.current.layout.cell_width_y
-            numerical_fluxes.h[i][j+1] +=
+            numerical_fluxes.h[i, j+1] +=
                 flux_h_top / simulation_data.current.layout.cell_width_y
-            numerical_fluxes.hv[i][j] +=
+            numerical_fluxes.hv[i, j] +=
                 flux_hv_bottom / simulation_data.current.layout.cell_width_y
-            numerical_fluxes.hv[i][j+1] +=
+            numerical_fluxes.hv[i, j+1] +=
                 flux_hv_top / simulation_data.current.layout.cell_width_y
 
             # Update wave speed
@@ -135,12 +135,12 @@ function update_cells!(
     for i in 2:simulation_data.current.layout.num_interior_cells_x+1
         for j in 2:simulation_data.current.layout.num_interior_cells_y+1
             # Perform the explicit integration
-            simulation_data.current.fields.h[i][j] -=
-                time_step * numerical_fluxes.h[i][j]
-            simulation_data.current.fields.hu[i][j] -=
-                time_step * numerical_fluxes.hu[i][j]
-            simulation_data.current.fields.hv[i][j] -=
-                time_step * numerical_fluxes.hv[i][j]
+            simulation_data.current.fields.h[i, j] -=
+                time_step * numerical_fluxes.h[i, j]
+            simulation_data.current.fields.hu[i, j] -=
+                time_step * numerical_fluxes.hu[i, j]
+            simulation_data.current.fields.hv[i, j] -=
+                time_step * numerical_fluxes.hv[i, j]
         end
     end
 end

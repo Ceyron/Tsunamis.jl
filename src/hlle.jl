@@ -185,7 +185,8 @@ function solve_riemann_hlle(
     ]
 
     # define the approximate eigenvectors of the Riemann problem
-    eigenvectors = [
+    # ugly construct with transpose necessary since julia is column-major
+    eigenvectors = transpose(hcat(
         [
             1.0,
             0.0,
@@ -201,14 +202,14 @@ function solve_riemann_hlle(
             1.0,
             eigenvalues[3] * eigenvalues[3],
         ],
-    ]
+    ))
 
     # compute the jump in state, this will be the rhs of system of Equations
     right_hand_side = [
         h_right - h_left,
         hu_right - hu_left,
         (hu_right * u_right + 0.5 * ACCELERATION_GRAVITY * h_right * h_right) -
-            (hu_left * u_left + 0.5 * ACCELERATION_GRAVITY * h_left * h_left),
+            (hu_left * u_left + 0.5 * ACCELERATION_GRAVITY * h_left * h_left)
     ]
 
     # compute the steady-state wave
@@ -276,7 +277,7 @@ function solve_riemann_hlle(
     # Apply effects of the steady-state wave
     right_hand_side[1] -= steady_state_wave[1]
     # right_hand_side[2]: no source term
-    right_hand_side[3] -= steady_state_wave[3]
+    right_hand_side[3] -= steady_state_wave[2]
 
     # solve the linear system of equations 
     # eigenvalue_matrix * beta = right_hand_side 
@@ -338,7 +339,8 @@ function solve_riemann_hlle(
             flux_hu_right += f_waves[wave_number, 2]
         else
             # Case shouldn't happen mathematically
-            println("Entered case that shouldnt happen")
+            # but does
+            #println("Entered case that shouldnt happen")
             flux_h_left += 0.5 * f_waves[wave_number, 1]
             flux_hu_left += 0.5 * f_waves[wave_number, 2]
 
@@ -347,7 +349,7 @@ function solve_riemann_hlle(
         end
     end
 
-    max_wave_speed = max.(abs.(wave_speeds))
+    max_wave_speed = max(abs.(wave_speeds)...)
 
     return flux_h_left, flux_h_right, flux_hu_left, flux_hu_right, max_wave_speed
 end
