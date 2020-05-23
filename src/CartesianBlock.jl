@@ -16,8 +16,14 @@ mutable struct SWE_Fields
 end
 
 @enum Boundary_Type begin
-    periodic
-    connected
+    # Boundary cell mimics interior cell next to it and reflects the perpendicular momentum
+    WALL
+    # Boundary cell mimics interior cell next to it in all conserved quantities
+    OUTFLOW
+    # Boundary cell values are copied from the interior values of the adjacent block
+    CONNECT
+    # The Boundary is not updated at all
+    PASSIVE
 end
 
 struct Boundary
