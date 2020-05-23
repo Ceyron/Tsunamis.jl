@@ -29,8 +29,6 @@ function radial_dam_break_imprint_initial_condition!(
     # height
     for i in 2:simulation_data.current.layout.num_interior_cells_x+1
         for j in 2:simulation_data.current.layout.num_interior_cells_y+1
-            simulation_data.current.bathymetry[i, j] = 0.0
-
             # Calculate the center position of the current interior cell
             position_x = simulation_data.current.layout.mesh_x[i-1] +
                 0.5 * simulation_data.current.layout.cell_width_x
@@ -48,5 +46,10 @@ function radial_dam_break_imprint_initial_condition!(
             end
         end
     end
+end
 
+function radial_dam_break_imprint_bathymetry!(
+    simulation_data::SWE_Simulation
+)
+    simulation_data.current.bathymetry .= 0
 end

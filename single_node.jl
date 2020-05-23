@@ -22,8 +22,8 @@ const offset_x = 0.;
 const offset_y = 0.;
 const num_cells_x = 100;
 const num_cells_y = 100;
-const time_end = 15.;
-const num_checkpoints = 20;
+const time_end = 50.;
+const num_checkpoints = 100;
 const output_name = "single_run";
 const cfl_number = 0.4;
 
@@ -101,11 +101,14 @@ function main()
         cfl_number,
     )
 
-    # Create the netCDF file
-    nc_data_set = create_output_file(simulation_settings, simulation_single_node)
+    # Imprint the bathymetry
+    radial_dam_break_imprint_bathymetry!(simulation_single_node)
 
     # Imprint the initial condition
     radial_dam_break_imprint_initial_condition!(simulation_single_node)
+
+    # Create the netCDF file
+    nc_data_set = create_output_file(simulation_settings, simulation_single_node)
 
     # Write the initial state to the cdf file
     write_fields!(nc_data_set, simulation_single_node, 1)
