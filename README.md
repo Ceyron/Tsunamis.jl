@@ -1,4 +1,7 @@
-# ft-hpc-julia
+# Tsunamis.jl - A Finite Volume Shallow Water Equation Solver for Julia
+
+![Example GIF][https://raw.githubusercontent.com/Ceyron/Tsunamis.jl/master/videos/radial_dam_break.gif]
+
 Future Trends in HPC Seminar - Shallow Water Equation Solvers with Julia
 
 This is a translation of elements of the Shallow Water Equation code from
