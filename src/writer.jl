@@ -116,83 +116,9 @@ function create_output_file(
 
     # Now use the other library to read in the dataset
     nc_data_set = NCDatasets.Dataset(nc_file_name, "a")
+    nc_data_set["b"][:, :] = simulation_data.current.bathymetry[2:end-1, 2:end-1]
 
     return nc_data_set
-
-
-    #=
-    # Create a new netCFD file
-    nc_data_set = NCDatasets.Dataset(
-        nc_file_name,
-        "c"
-    )
-
-    # Define the occurring dimensions, these are the dependent variables
-    t_in_ds = NCDatasets.defDim(
-        nc_data_set, "time", simulation_data.time_mesh.num_checkpoints
-    )
-    t_in_ds["longname"] = "Time"
-    x_in_ds = NCDatasets.defDim(
-        nc_data_set, "x", simulation_data.current.layout.num_interior_cells_x
-    )
-    y_in_ds = NCDatasets.defDim(
-        nc_data_set, "y", simulation_data.current.layout.num_interior_cells_y
-    )
-
-    # Set and write the dimension data
-    t_in_ds = simulation_data.time_mesh.time_nodes
-    # The mesh in x contains the location of the edges but the cell values of
-    # the conserved quantities are defined to be centered -> move the mesh
-    x_in_ds = (deepcopy(simulation_data.current.layout.mesh_x) .-
-        simulation_data.current.layout.cell_width_x ./ 2.)[2:end]
-    y_in_ds = (deepcopy(simulation_data.current.layout.mesh_y) .-
-        simulation_data.current.layout.cell_width_y ./ 2.)[2:end]
-    
-    # Create the variables we will be saving into
-    h_in_ds = NCDatasets.defVar(
-        nc_data_set,
-        "h",
-        Float64,
-        ("x", "y", "time"),
-        attrib=Dict(
-            "units" => "meter",
-            "longname" => "water height above bathymetry"
-        )
-    )
-    hu_in_ds = NCDatasets.defVar(
-        nc_data_set,
-        "hu",
-        Float64,
-        ("x", "y", "time"),
-        attrib=Dict(
-            "units" => "meter*meter/second",
-            "longname" => "x momentum"
-        )
-    )
-    hv_in_ds = NCDatasets.defVar(
-        nc_data_set,
-        "hv",
-        Float64,
-        ("x", "y", "time"),
-        attrib=Dict(
-            "units" => "meter*meter/second",
-            "longname" => "y momentum"
-        )
-    )
-    b_in_ds = NCDatasets.defVar(
-        nc_data_set,
-        "b",
-        Float64,
-        ("x", "y"),
-        attrib=Dict(
-            "units" => "meter",
-            "longname" => "bathymetry"
-        )
-    )
-    b_in_ds[:, :] = simulation_data.current.bathymetry[2:end-1, 2:end-1]
-
-    return nc_data_set
-    =#
 end
 
 # Write the current fields in the netcdf output
