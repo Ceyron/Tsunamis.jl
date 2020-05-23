@@ -72,7 +72,7 @@ function calculate_numerical_fluxes!(
 
             # Solve Riemann Problem
             flux_h_bottom, flux_h_top,
-            flux_hv_bottom, flux_hu_top,
+            flux_hv_bottom, flux_hv_top,
             max_edge_speed = solve_riemann_hlle(
                 simulation_data.current.fields.h[i, j],
                 simulation_data.current.fields.h[i, j+1],
@@ -94,11 +94,14 @@ function calculate_numerical_fluxes!(
                 flux_hv_bottom / simulation_data.current.layout.cell_width_y
             numerical_fluxes.hv[i, j+1] +=
                 flux_hv_top / simulation_data.current.layout.cell_width_y
+            
 
             # Update wave speed
             max_wave_speed = max(max_wave_speed, max_edge_speed, )
         end
     end
+    #println(numerical_fluxes.h)
+    #readline()
 
     return max_wave_speed
 end
