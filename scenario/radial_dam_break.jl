@@ -15,9 +15,18 @@ function radial_dam_break_get_domain_size()
     return domain_size_x, domain_size_y
 end
 
+function radial_dam_break_get_boundary_type()
+    return OUTFLOW
+end
+
 function radial_dam_break_imprint_initial_condition!(
     simulation_data::SWE_Simulation,
 )
+    # Set everywhere to the standard quantity (including the boundary)
+    simulation_data.current.fields.h .= height_water_else
+
+    # Check for which cells lie in the central region that has elevated water
+    # height
     for i in 2:simulation_data.current.layout.num_interior_cells_x+1
         for j in 2:simulation_data.current.layout.num_interior_cells_y+1
             simulation_data.current.bathymetry[i, j] = 0.0
@@ -36,8 +45,6 @@ function radial_dam_break_imprint_initial_condition!(
 
             if in_center_radius
                 simulation_data.current.fields.h[i, j] = height_water_center
-            else
-                simulation_data.current.fields.h[i, j] = height_water_else
             end
         end
     end

@@ -13,6 +13,7 @@ include("src/single_node_setup.jl")
 include("src/writer.jl")
 include("src/godunov.jl")
 include("scenario/radial_dam_break.jl")
+include("src/boundary.jl")
 
 
 # Some stub constants for the simulation, has to be set by command-line options
@@ -69,19 +70,19 @@ function main()
             # therefore set all boundary conditions to periodic
             Boundary_Collection(
                 Boundary(
-                    periodic,
+                    radial_dam_break_get_boundary_type(),
                     "none"
                 ),
                 Boundary(
-                    periodic,
+                    radial_dam_break_get_boundary_type(),
                     "none"
                 ),
                 Boundary(
-                    periodic,
+                    radial_dam_break_get_boundary_type(),
                     "none"
                 ),
                 Boundary(
-                    periodic,
+                    radial_dam_break_get_boundary_type(),
                     "none"
                 ),
             ),
@@ -136,7 +137,7 @@ function main()
             max_wave_speed = 0.0
 
             # (1) set values in ghost layer
-            # TODO
+            update_boundaries!(simulation_single_node)
 
             # (2) Compute numerical fluxes
             max_wave_speed = calculate_numerical_fluxes!(
