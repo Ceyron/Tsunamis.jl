@@ -117,10 +117,6 @@ function solve_riemann_hlle(
                 b_left = b_right = 0.0
                 wet_dry_state = DRY__WET_WALL
             end
-        else
-            # both cells are dry
-            # TODO: Does this here also affect the
-            return 0.0, 0.0, 0.0, 0.0, 0.0
         end
     end
     
@@ -166,9 +162,6 @@ function solve_riemann_hlle(
         extremal_einfeldt_speeds[1] =
             min(characteristic_speeds[1], roe_speeds[1])
         extremal_einfeldt_speeds[2] = roe_speeds[2]
-    else
-        # TODO: this was problematic in the vectorized c++ implementation
-        println("Should have entered here, calculation of einfeldt speeds")
     end
 
     # compute the middle state according to the hll algorithm
@@ -360,7 +353,7 @@ function solve_riemann_hlle(
         end
     end
 
-    max_wave_speed = max(abs.(wave_speeds)...)
+    max_wave_speed = max(abs(wave_speeds[1]), abs(wave_speeds[2]), wave_speeds[3])
 
     return flux_h_left, flux_h_right, flux_hu_left, flux_hu_right, max_wave_speed
 end
