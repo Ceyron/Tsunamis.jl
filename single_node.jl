@@ -20,10 +20,10 @@ include("src/boundary.jl")
 # later on
 const offset_x = 0.;
 const offset_y = 0.;
-const num_cells_x = 100;
-const num_cells_y = 100;
-const time_end = 50.;
-const num_checkpoints = 100;
+const num_cells_x = 200;
+const num_cells_y = 200;
+const time_end = 15.;
+const num_checkpoints = 20;
 const output_name = "single_run";
 const cfl_number = 0.4;
 
@@ -115,8 +115,7 @@ function main()
 
 
     # Iterate over all checkpoints
-    for i_checkpoint in 2:num_checkpoints
-
+    @time for i_checkpoint in 2:num_checkpoints
 
         # Integrate until next checkpoint is reached
         while simulation_single_node.current.time <
