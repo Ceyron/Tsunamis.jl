@@ -1,6 +1,5 @@
 # Contains routines to update the simulation block in a godunov style fashion by
 # a first order explicit time integration
-
 include("single_node_setup.jl")
 include("CartesianBlock.jl")
 include("hlle.jl")
@@ -22,6 +21,17 @@ function calculate_numerical_fluxes!(
     # the right and top edge of these cells
     for j in 1:simulation_data.current.layout.num_interior_cells_y+1
         for i in 1:simulation_data.current.layout.num_interior_cells_x+1
+            # The quantities to be calculated for each vertical edge
+            flux_h_left = 0.0
+            flux_h_right = 0.0
+            flux_hu_left = 0.0
+            flux_hu_right = 0.0
+
+            # The quantities to be calculated for each horizontal edge
+            flux_h_top = 0.0
+            flux_h_bottom = 0.0
+            flux_hv_top = 0.0
+            flux_hv_bottom = 0.0
 
             # The maximum wave speed at the edge currently considered by the Riemann solver
             max_edge_speed = 0.0

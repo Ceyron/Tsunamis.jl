@@ -113,7 +113,6 @@ function main()
     # Write the initial state to the cdf file
     write_fields!(nc_data_set, simulation_single_node, 1)
 
-
     # Iterate over all checkpoints
     @time for i_checkpoint in 2:num_checkpoints
 
