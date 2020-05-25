@@ -12,17 +12,7 @@ function calculate_numerical_fluxes!(
     # Initialize and collect over all over cells
     max_wave_speed = 0.0
 
-    # The quantities to be calculated for each vertical edge
-    flux_h_left = 0.0
-    flux_h_right = 0.0
-    flux_hu_left = 0.0
-    flux_hu_right = 0.0
 
-    # The quantities to be calculated for each horizontal edge
-    flux_h_top = 0.0
-    flux_h_bottom = 0.0
-    flux_hv_top = 0.0
-    flux_hv_bottom = 0.0
     
     # Iterate over each and calculate the flux in each direction perpendicular
     # to the edge, then add this to the summed fluxes for each cell
@@ -30,8 +20,10 @@ function calculate_numerical_fluxes!(
     # One could understand this iteration as if we are iterating over the
     # interior cells and bottom row and left column on halo cells and considering
     # the right and top edge of these cells
-    for i in 1:simulation_data.current.layout.num_interior_cells_x+1
-        for j in 1:simulation_data.current.layout.num_interior_cells_y+1
+    for j in 1:simulation_data.current.layout.num_interior_cells_y+1
+        for i in 1:simulation_data.current.layout.num_interior_cells_x+1
+
+            # The maximum wave speed at the edge currently considered by the Riemann solver
             max_edge_speed = 0.0
 
             ####
@@ -94,14 +86,11 @@ function calculate_numerical_fluxes!(
                 flux_hv_bottom / simulation_data.current.layout.cell_width_y
             numerical_fluxes.hv[i, j+1] +=
                 flux_hv_top / simulation_data.current.layout.cell_width_y
-            
 
             # Update wave speed
             max_wave_speed = max(max_wave_speed, max_edge_speed, )
         end
     end
-    #println(numerical_fluxes.h)
-    #readline()
 
     return max_wave_speed
 end
@@ -135,8 +124,8 @@ function update_cells!(
     )
 
     # Loop over all interior cells
-    for i in 2:simulation_data.current.layout.num_interior_cells_x+1
-        for j in 2:simulation_data.current.layout.num_interior_cells_y+1
+    for j in 2:simulation_data.current.layout.num_interior_cells_y+1
+        for i in 2:simulation_data.current.layout.num_interior_cells_x+1
             # Perform the explicit integration
             simulation_data.current.fields.h[i, j] -=
                 time_step * numerical_fluxes.h[i, j]
