@@ -2,6 +2,8 @@
     Implements an adapted version of the hlle Riemann solver for the Shallow Water Equations
 =#
 
+import StaticArrays
+
 # How to classify the two cells adjacent to the edge considered
 @enum Cell_Pair_State begin
     UNDEFINED
@@ -130,7 +132,7 @@ function solve_riemann_hlle(
     # compute eigenvalues of the jacobian matrix (== characteristic speeds)
     # Actually there are three since we have 3 conserved quantities but one
     # speed will always be 0
-    characteristic_speeds = [
+    characteristic_speeds = StaticArrays.SA_F64[
         u_left - sqrt(ACCELERATION_GRAVITY * h_left),
         u_right + sqrt(ACCELERATION_GRAVITY * h_right),
     ]
@@ -142,13 +144,13 @@ function solve_riemann_hlle(
     
     # compute the "Roe" speeds (i.e. quantities similar to the characteristic
     # speeds)
-    roe_speeds = [
+    roe_speeds = StaticArrays.SA_F64[
         u_roe - sqrt(ACCELERATION_GRAVITY * h_roe),
         u_roe + sqrt(ACCELERATION_GRAVITY * h_roe),
     ]
 
     # compute the einfeldt speeds based on the situation
-    extremal_einfeldt_speeds = zeros(2)
+    extremal_einfeldt_speeds = StaticArrays.MVector{2, Float64}(undef)
     if wet_dry_state == WET__WET || wet_dry_state == WET__DRY_WALL || wet_dry_state == DRY__WET_WALL
         extremal_einfeldt_speeds[1] =
             min(characteristic_speeds[1], roe_speeds[1])
@@ -179,7 +181,7 @@ function solve_riemann_hlle(
     )
 
     # define the approximate eigenvalues of the Riemann problem
-    eigenvalues = [
+    eigenvalues = StaticArrays.SA_F64[
         extremal_einfeldt_speeds[1],
         0.5 * (extremal_einfeldt_speeds[1] + extremal_einfeldt_speeds[2]),
         extremal_einfeldt_speeds[2],
@@ -187,38 +189,43 @@ function solve_riemann_hlle(
 
     # define the approximate eigenvectors of the Riemann problem
     # ugly construct with transpose necessary since julia is column-major
-    # DEBUG: Is the transpose really necessary here?!
-    eigenvectors = [
-        [
+    eigenvectors = StaticArrays.SA_F64[
+        1.0 0.0 1.0;
+        eigenvalues[1] 0.0 eigenvalues[3];
+        eigenvalues[1]^2 1.0 eigenvalues[3]^2 
+    ]
+    #=
+        StaticArrays.SA_F64[
             1.0,
             0.0,
             1.0,
         ],
-        [
+        StaticArrays.SA_F64[
             eigenvalues[1],
             0.0,
             eigenvalues[3],
         ],
-        [
+        StaticArrays.SA_F64[
             eigenvalues[1] * eigenvalues[1],
             1.0,
             eigenvalues[3] * eigenvalues[3],
         ],
     ]
+    =#
 
     # compute the jump in state, this will be the rhs of system of Equations
-    right_hand_side = [
+    right_hand_side = StaticArrays.MVector(
         h_right - h_left,
         hu_right - hu_left,
         (hu_right * u_right + 0.5 * ACCELERATION_GRAVITY * h_right^2) -
             (hu_left * u_left + 0.5 * ACCELERATION_GRAVITY * h_left^2)
-    ]
+    )
 
     # compute the steady-state wave
-    steady_state_wave = [
+    steady_state_wave = StaticArrays.MVector(
         - (b_right - b_left),
         - 0.5 * ACCELERATION_GRAVITY * (h_left + h_right) * (b_right - b_left),
-    ]
+    )
 
     # preserve the depth-positivity i.e. find out whether the wave speed
     # directions is subsonic (the two extremal waves both have their own
@@ -287,7 +294,7 @@ function solve_riemann_hlle(
     # calculate the f-waves
     #
     # the solution process is basically based on gaussian elimination
-    beta = zeros(3)
+    beta = StaticArrays.MVector{3, Float64}(undef)
     beta[1] = (eigenvalues[3] * right_hand_side[1] - right_hand_side[2]) /
         (eigenvalues[3] - eigenvalues[1])
     beta[3] = (- eigenvalues[1] * right_hand_side[1] + right_hand_side[2]) /
@@ -299,34 +306,32 @@ function solve_riemann_hlle(
     
 
     # compute f-waves and wave speeds
-    f_waves = [
-        zeros(2),
-        zeros(2),
-        zeros(2),
-    ]
-    wave_speeds = zeros(3)
+    f_waves = StaticArrays.MMatrix{3, 2, Float64}(undef)
+    f_waves .= 0.0
+    wave_speeds = StaticArrays.MVector{3, Float64}(undef)
+    wave_speeds .= 0.0
 
     if wet_dry_state == WET__DRY_WALL
         # zero ghost updates (wall boundary)
         # care about the left-going wave (index 1) only
-        f_waves[1][1] = beta[1] * eigenvectors[2][1]
-        f_waves[1][2] = beta[1] * eigenvectors[3][1]
+        f_waves[1, 1] = beta[1] * eigenvectors[2, 1]
+        f_waves[1, 2] = beta[1] * eigenvectors[3, 1]
 
         wave_speeds[1] = eigenvalues[1]
     elseif wet_dry_state == DRY__WET_WALL
         # zero ghost updates (wall boundary)
         # care about the right-going wave (index 3) only
-        f_waves[3][1] = beta[3] * eigenvectors[2][3]
-        f_waves[3][2] = beta[3] * eigenvectors[3][3]
+        f_waves[3, 1] = beta[3] * eigenvectors[2, 3]
+        f_waves[3, 2] = beta[3] * eigenvectors[3, 3]
 
         wave_speeds[3] = eigenvalues[3]
     else
         # default computation
         for wave_number in 1:3
-            f_waves[wave_number][1] = beta[wave_number] *
-                eigenvectors[2][wave_number]
-            f_waves[wave_number][2] = beta[wave_number] * 
-                eigenvectors[3][wave_number]
+            f_waves[wave_number, 1] = beta[wave_number] *
+                eigenvectors[2, wave_number]
+            f_waves[wave_number, 2] = beta[wave_number] * 
+                eigenvectors[3, wave_number]
         end
         # TODO check if deepcopy might be necessary
         wave_speeds = eigenvalues
@@ -337,21 +342,21 @@ function solve_riemann_hlle(
     for wave_number in 1:3
         if wave_speeds[wave_number] < - ZERO_TOL
             # left going
-            flux_h_left += f_waves[wave_number][1]
-            flux_hu_left += f_waves[wave_number][2]
+            flux_h_left += f_waves[wave_number, 1]
+            flux_hu_left += f_waves[wave_number, 2]
         elseif wave_speeds[wave_number] > ZERO_TOL
             # right going
-            flux_h_right += f_waves[wave_number][1]
-            flux_hu_right += f_waves[wave_number][2]
+            flux_h_right += f_waves[wave_number, 1]
+            flux_hu_right += f_waves[wave_number, 2]
         else
             # Case shouldn't happen mathematically
             # but does
             #println("Entered case that shouldn't happen")
-            flux_h_left += 0.5 * f_waves[wave_number][1]
-            flux_hu_left += 0.5 * f_waves[wave_number][2]
+            flux_h_left += 0.5 * f_waves[wave_number, 1]
+            flux_hu_left += 0.5 * f_waves[wave_number, 2]
 
-            flux_h_right += 0.5 * f_waves[wave_number][1]
-            flux_hu_right += 0.5 * f_waves[wave_number][2]
+            flux_h_right += 0.5 * f_waves[wave_number, 1]
+            flux_hu_right += 0.5 * f_waves[wave_number, 2]
         end
     end
 
