@@ -12,23 +12,23 @@ function update_boundaries!(
     if simulation_data.current.boundaries.left.type == WALL
         # Height (copied)
         simulation_data.current.fields.h[1, 2:end-1] =
-            simulation_data.current.fields.h[1, 2:end-1]
+            simulation_data.current.fields.h[2, 2:end-1]
         # Momentum in x (mirrored)
-        simulation_data.current.fields.hu[1, 2:end-1] = -
-            simulation_data.current.fields.hu[1, 2:end-1]
+        simulation_data.current.fields.hu[1, 2:end-1] .=
+            - simulation_data.current.fields.hu[2, 2:end-1]
         # Momentum in y (copied)
         simulation_data.current.fields.hv[1, 2:end-1] =
-            simulation_data.current.fields.hv[1, 2:end-1]
+            simulation_data.current.fields.hv[2, 2:end-1]
     elseif simulation_data.current.boundaries.left.type == OUTFLOW
         # Height (copied)
         simulation_data.current.fields.h[1, 2:end-1] =
-            simulation_data.current.fields.h[1, 2:end-1]
+            simulation_data.current.fields.h[2, 2:end-1]
         # Momentum in x (copied)
         simulation_data.current.fields.hu[1, 2:end-1] =
-            simulation_data.current.fields.hu[1, 2:end-1]
+            simulation_data.current.fields.hu[2, 2:end-1]
         # Momentum in y (copied)
         simulation_data.current.fields.hv[1, 2:end-1] =
-            simulation_data.current.fields.hv[1, 2:end-1]
+            simulation_data.current.fields.hv[2, 2:end-1]
     elseif simulation_data.current.boundaries.left.type == PASSIVE
         # Nothing happens
     end
@@ -42,8 +42,8 @@ function update_boundaries!(
         simulation_data.current.fields.hu[2:end-1, end] =
             simulation_data.current.fields.hu[2:end-1, end-1]
         # Momentum y (mirrored)
-        simulation_data.current.fields.hv[2:end-1, end] = -
-            simulation_data.current.fields.hv[2:end-1, end-1]
+        simulation_data.current.fields.hv[2:end-1, end] .=
+            - simulation_data.current.fields.hv[2:end-1, end-1]
     elseif simulation_data.current.boundaries.top.type == OUTFLOW
         # Height (copied)
         simulation_data.current.fields.h[2:end-1, end] =
@@ -64,8 +64,8 @@ function update_boundaries!(
         simulation_data.current.fields.h[end, 2:end-1] =
             simulation_data.current.fields.h[end-1, 2:end-1]
         # Momentum x (mirrored)
-        simulation_data.current.fields.hu[end, 2:end-1] = -
-            simulation_data.current.fields.hu[end-1, 2:end-1]
+        simulation_data.current.fields.hu[end, 2:end-1] .=
+            - simulation_data.current.fields.hu[end-1, 2:end-1]
         # Momentum y (copied)
         simulation_data.current.fields.hv[end, 2:end-1] =
             simulation_data.current.fields.hv[end-1, 2:end-1]
@@ -92,8 +92,8 @@ function update_boundaries!(
         simulation_data.current.fields.hu[2:end-1, 1] =
             simulation_data.current.fields.hu[2:end-1, 2]
         # Momentum y (mirrored)
-        simulation_data.current.fields.hv[2:end-1, 1] = -
-            simulation_data.current.fields.hv[2:end-1, 2]
+        simulation_data.current.fields.hv[2:end-1, 1] .= 
+            - simulation_data.current.fields.hv[2:end-1, 2]
     elseif simulation_data.current.boundaries.bottom.type == OUTFLOW
         # Height (copied)
         simulation_data.current.fields.h[2:end-1, 1] =
