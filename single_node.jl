@@ -20,8 +20,8 @@ include("src/boundary.jl")
 # later on
 const offset_x = 0.;
 const offset_y = 0.;
-const num_cells_x = 200;
-const num_cells_y = 200;
+const num_cells_x = 400;
+const num_cells_y = 400;
 const time_end = 15.;
 const num_checkpoints = 20;
 const output_name = "single_run";
@@ -112,6 +112,16 @@ function main()
 
     # Write the initial state to the cdf file
     write_fields!(nc_data_set, simulation_single_node, 1)
+    # Instantiate the flux field struct to be used over the iterations, they
+    # contain the accumulated (~= cummulative) fluxes summed up from the fluxes
+    # over each edge For loop convenience in the update routines we also
+    # calculate flux summations for the halo cells (bottom and left) even though they are not
+    # updated
+    fluxes = SWE_Fields(
+        Array{Float64, 2}(undef, num_cells_x + 2, num_cells_y + 2),
+        Array{Float64, 2}(undef, num_cells_x + 2, num_cells_y + 2),
+        Array{Float64, 2}(undef, num_cells_x + 2, num_cells_y + 2),
+    )
 
     # Iterate over all checkpoints
     @time for i_checkpoint in 2:num_checkpoints
@@ -122,17 +132,11 @@ function main()
             println("Simulating at time $(simulation_single_node.current.time)",
                 "/$(simulation_single_node.time_mesh.time_end)")            
 
+            # Clear the flux fields
+            fluxes.h .= 0.0
+            fluxes.hu .= 0.0
+            fluxes.hv .= 0.0
 
-            # Instantiate the flux field struct to be used over the iterations, they
-            # contain the accumulated (~= cummulative) fluxes summed up from the fluxes
-            # over each edge For loop convenience in the update routines we also
-            # calculate flux summations for the halo cells (bottom and left) even though they are not
-            # updated
-            fluxes = SWE_Fields(
-                zeros(num_cells_x + 2, num_cells_y + 2),
-                zeros(num_cells_x + 2, num_cells_y + 2),
-                zeros(num_cells_x + 2, num_cells_y + 2),
-            )
 
             # The maximum wave speed is relevant for the CFL condition
             max_wave_speed = 0.0
