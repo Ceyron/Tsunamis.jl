@@ -287,73 +287,120 @@ function solve_riemann_hlle(
     # calculate the f-waves
     #
     # the solution process is basically based on gaussian elimination
-    beta = StaticArrays.MVector{3, Float64}(undef)
-    beta[1] = (eigenvalues[3] * right_hand_side[1] - right_hand_side[2]) /
+    beta_1 = (eigenvalues[3] * right_hand_side[1] - right_hand_side[2]) /
         (eigenvalues[3] - eigenvalues[1])
-    beta[3] = (- eigenvalues[1] * right_hand_side[1] + right_hand_side[2]) /
+    beta_3 = (- eigenvalues[1] * right_hand_side[1] + right_hand_side[2]) /
         (eigenvalues[3] - eigenvalues[1])
-    beta[2] = right_hand_side[3] -
-        eigenvalues[1] * eigenvalues[1] * beta[1] -
-        eigenvalues[3] * eigenvalues[3] * beta[3]
-    
+    beta_2 = right_hand_side[3] -
+        eigenvalues[1] * eigenvalues[1] * beta_1 -
+        eigenvalues[3] * eigenvalues[3] * beta_3
     
 
     # compute f-waves and wave speeds
     f_waves = StaticArrays.MMatrix{3, 2, Float64}(undef)
     f_waves .= 0.0
-    wave_speeds = StaticArrays.MVector{3, Float64}(undef)
-    wave_speeds .= 0.0
+    wave_speed_1 = 0.0
+    wave_speed_2 = 0.0
+    wave_speed_3 = 0.0
 
     if wet_dry_state == WET__DRY_WALL
         # zero ghost updates (wall boundary)
         # care about the left-going wave (index 1) only
-        f_waves[1, 1] = beta[1] * eigenvectors[2, 1]
-        f_waves[1, 2] = beta[1] * eigenvectors[3, 1]
+        f_waves[1, 1] = beta_1 * eigenvectors[2, 1]
+        f_waves[1, 2] = beta_1 * eigenvectors[3, 1]
 
-        wave_speeds[1] = eigenvalues[1]
+        wave_speed_1 = eigenvalues[1]
     elseif wet_dry_state == DRY__WET_WALL
         # zero ghost updates (wall boundary)
         # care about the right-going wave (index 3) only
-        f_waves[3, 1] = beta[3] * eigenvectors[2, 3]
-        f_waves[3, 2] = beta[3] * eigenvectors[3, 3]
+        f_waves[3, 1] = beta_3 * eigenvectors[2, 3]
+        f_waves[3, 2] = beta_3 * eigenvectors[3, 3]
 
-        wave_speeds[3] = eigenvalues[3]
+        wave_speed_3 = eigenvalues[3]
     else
         # default computation
-        for wave_number in 1:3
-            f_waves[wave_number, 1] = beta[wave_number] *
-                eigenvectors[2, wave_number]
-            f_waves[wave_number, 2] = beta[wave_number] * 
-                eigenvectors[3, wave_number]
-        end
+        f_waves[1, 1] = beta_1 *
+            eigenvectors[2, 1]
+        f_waves[1, 2] = beta_1 * 
+            eigenvectors[3, 1]
+        f_waves[2, 1] = beta_2 *
+            eigenvectors[2, 2]
+        f_waves[2, 2] = beta_2 * 
+            eigenvectors[3, 2]
+        f_waves[3, 1] = beta_3 *
+            eigenvectors[2, 3]
+        f_waves[3, 2] = beta_3 * 
+            eigenvectors[3, 3]
         # TODO check if deepcopy might be necessary
-        wave_speeds = eigenvalues
+        wave_speed_1 = eigenvalues[1]
+        wave_speed_2 = eigenvalues[2]
+        wave_speed_3 = eigenvalues[3]
     end
 
     # Use the f-waves to calculate the numerical fluxes into each of the two
     # adjacent cells for each of the occuring wave
-    for wave_number in 1:3
-        if wave_speeds[wave_number] < - ZERO_TOL
-            # left going
-            flux_h_left += f_waves[wave_number, 1]
-            flux_hu_left += f_waves[wave_number, 2]
-        elseif wave_speeds[wave_number] > ZERO_TOL
-            # right going
-            flux_h_right += f_waves[wave_number, 1]
-            flux_hu_right += f_waves[wave_number, 2]
-        else
-            # Case shouldn't happen mathematically
-            # but does
-            #println("Entered case that shouldn't happen")
-            flux_h_left += 0.5 * f_waves[wave_number, 1]
-            flux_hu_left += 0.5 * f_waves[wave_number, 2]
+    if wave_speed_1 < - ZERO_TOL
+        # left going
+        flux_h_left += f_waves[1, 1]
+        flux_hu_left += f_waves[1, 2]
+    elseif wave_speed_1 > ZERO_TOL
+        # right going
+        flux_h_right += f_waves[1, 1]
+        flux_hu_right += f_waves[1, 2]
+    else
+        # Case shouldn't happen mathematically
+        # but does
+        #println("Entered case that shouldn't happen")
+        flux_h_left += 0.5 * f_waves[1, 1]
+        flux_hu_left += 0.5 * f_waves[1, 2]
 
-            flux_h_right += 0.5 * f_waves[wave_number, 1]
-            flux_hu_right += 0.5 * f_waves[wave_number, 2]
-        end
+        flux_h_right += 0.5 * f_waves[1, 1]
+        flux_hu_right += 0.5 * f_waves[1, 2]
     end
 
-    max_wave_speed = max(abs(wave_speeds[1]), abs(wave_speeds[2]), wave_speeds[3])
+    if wave_speed_2 < - ZERO_TOL
+        # left going
+        flux_h_left += f_waves[2, 1]
+        flux_hu_left += f_waves[2, 2]
+    elseif wave_speed_2 > ZERO_TOL
+        # right going
+        flux_h_right += f_waves[2, 1]
+        flux_hu_right += f_waves[2, 2]
+    else
+        # Case shouldn't happen mathematically
+        # but does
+        #println("Entered case that shouldn't happen")
+        flux_h_left += 0.5 * f_waves[2, 1]
+        flux_hu_left += 0.5 * f_waves[2, 2]
+
+        flux_h_right += 0.5 * f_waves[2, 1]
+        flux_hu_right += 0.5 * f_waves[2, 2]
+    end
+
+    if wave_speed_3 < - ZERO_TOL
+        # left going
+        flux_h_left += f_waves[3, 1]
+        flux_hu_left += f_waves[3, 2]
+    elseif wave_speed_3 > ZERO_TOL
+        # right going
+        flux_h_right += f_waves[3, 1]
+        flux_hu_right += f_waves[3, 2]
+    else
+        # Case shouldn't happen mathematically
+        # but does
+        #println("Entered case that shouldn't happen")
+        flux_h_left += 0.5 * f_waves[3, 1]
+        flux_hu_left += 0.5 * f_waves[3, 2]
+
+        flux_h_right += 0.5 * f_waves[3, 1]
+        flux_hu_right += 0.5 * f_waves[3, 2]
+    end
+
+    max_wave_speed = max(
+        abs(wave_speed_1),
+        abs(wave_speed_2),
+        abs(wave_speed_3),
+    )
 
     return flux_h_left, flux_h_right, flux_hu_left, flux_hu_right, max_wave_speed
 end
