@@ -116,7 +116,8 @@ function create_output_file(
 
     # Now use the other library to read in the dataset
     nc_data_set = NCDatasets.Dataset(nc_file_name, "a")
-    nc_data_set["b"][:, :] = simulation_data.current.bathymetry[2:end-1, 2:end-1]
+    @views nc_data_set["b"][:, :] =
+        simulation_data.current.bathymetry[2:end-1, 2:end-1]
 
     return nc_data_set
 end
@@ -133,11 +134,11 @@ function write_fields!(
     slicer_y = 2:simulation_data.current.layout.num_interior_cells_y+1
 
     # Write the fields to the open netcdf handle
-    data_set_handle["h"][:, :, time_index] =
+    @views data_set_handle["h"][:, :, time_index] =
         simulation_data.current.fields.h[slicer_x, slicer_y]
-    data_set_handle["hu"][:, :, time_index] =
+    @views data_set_handle["hu"][:, :, time_index] =
         simulation_data.current.fields.hu[slicer_x, slicer_y]
-    data_set_handle["hv"][:, :, time_index] =
+    @views data_set_handle["hv"][:, :, time_index] =
         simulation_data.current.fields.hv[slicer_x, slicer_y]
 end
 
