@@ -182,4 +182,4 @@ end
 
 
 # Start the main function
-main()
+@time main()
