@@ -53,8 +53,8 @@ function main()
                 domain_size_x / num_cells_x,
                 domain_size_y /num_cells_y,
                 # Create the mesh, for N interior cells we have N+1 edges in each direction
-                range(offset_x, offset_x+domain_size_x; length=num_cells_x),
-                range(offset_y, offset_y+domain_size_y; length=num_cells_y),
+                range(offset_x, offset_x+domain_size_x; length=num_cells_x+1),
+                range(offset_y, offset_y+domain_size_y; length=num_cells_y+1),
             ),
             SWE_Fields(
                 # Account for the additional halo layers of the boundary

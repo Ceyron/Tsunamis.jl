@@ -24,10 +24,15 @@ function create_output_file(
         rm(nc_file_name)
     end
 
-    x_in_ds = (deepcopy(simulation_data.current.layout.mesh_x) .-
-        simulation_data.current.layout.cell_width_x ./ 2.)[1:end]
-    y_in_ds = (deepcopy(simulation_data.current.layout.mesh_y) .-
-        simulation_data.current.layout.cell_width_y ./ 2.)[1:end]
+    # The created mesh has N+1 edges for N interior cells. The coordinates
+    # address the bottom left corner of each cell (i.e. also the last but not
+    # the first halo cell). To get the coordinates of the cell centers we add
+    # half ot he cell with to each of it and only take the first N elements of
+    # the array
+    x_in_ds = (deepcopy(simulation_data.current.layout.mesh_x) .+
+        simulation_data.current.layout.cell_width_x ./ 2.)[1:end-1]
+    y_in_ds = (deepcopy(simulation_data.current.layout.mesh_y) .+
+        simulation_data.current.layout.cell_width_y ./ 2.)[1:end-1]
     time_in_ds = deepcopy(simulation_data.time_mesh.time_nodes)
 
     # Attribute Dictionaries for dimensions
