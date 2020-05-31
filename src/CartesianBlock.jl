@@ -65,7 +65,6 @@ end
 mutable struct Simulation_Block
     layout::Layout
     fields::SWE_Fields
-    time::Float64
     bathymetry::Array{Float64, 2}
     boundaries::Boundary_Collection
 end

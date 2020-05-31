@@ -13,6 +13,7 @@ end
 mutable struct SWE_Simulation
     current::Simulation_Block
     time_mesh::Time_Mesh
+    time::Float64
 end
 
 struct SWE_Simulation_Settings

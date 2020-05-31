@@ -62,8 +62,6 @@ function main()
                 zeros(num_cells_x + 2, num_cells_y + 2),
                 zeros(num_cells_x + 2, num_cells_y + 2),
             ),
-            # Set initial time to zero
-            0.0,
             # The Bathymetry data
             zeros(num_cells_x + 2, num_cells_y + 2),
             # No particular distribution occurs in the single_node case,
@@ -93,6 +91,8 @@ function main()
             num_checkpoints,
             range(0, time_end; length=num_checkpoints),
         ),
+        # Set initial time to zero
+        0.0
     )
 
     # Instantiate the container for all the selected simulation settings
@@ -127,9 +127,9 @@ function main()
     @time for i_checkpoint in 2:num_checkpoints
 
         # Integrate until next checkpoint is reached
-        while simulation_single_node.current.time <
+        while simulation_single_node.time <
                 simulation_single_node.time_mesh.time_nodes[i_checkpoint]
-            println("Simulating at time $(simulation_single_node.current.time)",
+            println("Simulating at time $(simulation_single_node.time)",
                 "/$(simulation_single_node.time_mesh.time_end)")            
 
             # Clear the flux fields
@@ -162,7 +162,7 @@ function main()
             update_cells!(simulation_single_node, fluxes, time_step)
 
             # (5) Refresh to current simulation time
-            simulation_single_node.current.time += time_step
+            simulation_single_node.time += time_step
         end
 
         # Save the fields
