@@ -54,8 +54,8 @@ struct Layout
     offset_y::Float64
     size_x::Float64
     size_y::Float64
-    num_interior_cells_x::UInt64
-    num_interior_cells_y::UInt64
+    num_interior_cells_x::Int64
+    num_interior_cells_y::Int64
     cell_width_x::Float64
     cell_width_y::Float64
     mesh_x::Array{Float64, 1}
