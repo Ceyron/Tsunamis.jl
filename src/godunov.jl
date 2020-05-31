@@ -17,7 +17,7 @@ function calculate_numerical_fluxes!(
     # One could understand this iteration as if we are iterating over the
     # interior cells and bottom row and left column on halo cells and considering
     # the right and top edge of these cells
-    @inbounds for j in 1:simulation_data.current.layout.num_interior_cells_y+1
+    for j in 1:simulation_data.current.layout.num_interior_cells_y+1
         for i in 1:simulation_data.current.layout.num_interior_cells_x+1
             # The quantities to be calculated for each vertical edge
             flux_h_left = 0.0
@@ -39,7 +39,7 @@ function calculate_numerical_fluxes!(
             ####
 
             # Solve Riemann Problem
-            flux_h_left, flux_h_right,
+            @inbounds flux_h_left, flux_h_right,
             flux_hu_left, flux_hu_right,
             max_edge_speed = solve_riemann_hlle(
                 simulation_data.current.fields.h[i, j],
@@ -53,13 +53,13 @@ function calculate_numerical_fluxes!(
             # Update the accumulated fluxes of the cells adjacent to the right
             # edge (i.e. the current aiding iterating cell and the one right of
             # it)
-            numerical_fluxes.h[i, j] +=
+            @inbounds numerical_fluxes.h[i, j] +=
                 flux_h_left / simulation_data.current.layout.cell_width_x
-            numerical_fluxes.h[i+1, j] +=
+            @inbounds numerical_fluxes.h[i+1, j] +=
                 flux_h_right / simulation_data.current.layout.cell_width_x
-            numerical_fluxes.hu[i, j] +=
+            @inbounds numerical_fluxes.hu[i, j] +=
                 flux_hu_left / simulation_data.current.layout.cell_width_x
-            numerical_fluxes.hu[i+1, j] +=
+            @inbounds numerical_fluxes.hu[i+1, j] +=
                 flux_hu_right / simulation_data.current.layout.cell_width_x
 
             # Update wave speed
@@ -71,7 +71,7 @@ function calculate_numerical_fluxes!(
             ####
 
             # Solve Riemann Problem
-            flux_h_bottom, flux_h_top,
+            @inbounds flux_h_bottom, flux_h_top,
             flux_hv_bottom, flux_hv_top,
             max_edge_speed = solve_riemann_hlle(
                 simulation_data.current.fields.h[i, j],
@@ -86,13 +86,13 @@ function calculate_numerical_fluxes!(
             # edge (i.e. the current aiding iterating cell and the one on top of
             # it)
             # TODO: Don't we have to divide by cell_width_x because we need the length of the edge?!
-            numerical_fluxes.h[i, j] +=
+            @inbounds numerical_fluxes.h[i, j] +=
                 flux_h_bottom / simulation_data.current.layout.cell_width_y
-            numerical_fluxes.h[i, j+1] +=
+            @inbounds numerical_fluxes.h[i, j+1] +=
                 flux_h_top / simulation_data.current.layout.cell_width_y
-            numerical_fluxes.hv[i, j] +=
+            @inbounds numerical_fluxes.hv[i, j] +=
                 flux_hv_bottom / simulation_data.current.layout.cell_width_y
-            numerical_fluxes.hv[i, j+1] +=
+            @inbounds numerical_fluxes.hv[i, j+1] +=
                 flux_hv_top / simulation_data.current.layout.cell_width_y
 
             # Update wave speed
@@ -132,14 +132,14 @@ function update_cells!(
     )
 
     # Loop over all interior cells
-    @inbounds for j in 2:simulation_data.current.layout.num_interior_cells_y+1
+    for j in 2:simulation_data.current.layout.num_interior_cells_y+1
         for i in 2:simulation_data.current.layout.num_interior_cells_x+1
             # Perform the explicit integration
-            simulation_data.current.fields.h[i, j] -=
+            @inbounds simulation_data.current.fields.h[i, j] -=
                 time_step * numerical_fluxes.h[i, j]
-            simulation_data.current.fields.hu[i, j] -=
+            @inbounds simulation_data.current.fields.hu[i, j] -=
                 time_step * numerical_fluxes.hu[i, j]
-            simulation_data.current.fields.hv[i, j] -=
+            @inbounds simulation_data.current.fields.hv[i, j] -=
                 time_step * numerical_fluxes.hv[i, j]
         end
     end
