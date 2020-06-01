@@ -104,18 +104,19 @@ function calculate_numerical_fluxes!(
 end
 
 function compute_max_time_step(
-    simulation_data::SWE_Simulation,
+    cell_width_x::Float64,
+    cell_width_y::Float64,
     max_wave_speed::Float64,
     cfl_condition::Float64,
 )
-    if max_wave_speed < 0.00000
+    if max_wave_speed < 0.000001
         # This shouldn't be the case
         println("WARNING: Max wave speed is too low")
     end
     # The CFL condition ensures that the numerical solution is stable
     max_time_step = min(
-        simulation_data.current.layout.cell_width_x / max_wave_speed,
-        simulation_data.current.layout.cell_width_y / max_wave_speed,
+        cell_width_x / max_wave_speed,
+        cell_width_y / max_wave_speed,
     )
 
     max_time_step *= cfl_condition

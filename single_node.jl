@@ -153,7 +153,8 @@ function main()
             # (3) Calculate the new time step (maximum allows time_step due to
             # the wave speeds)
             time_step = compute_max_time_step(
-                simulation_single_node,
+                simulation_single_node.current.layout.cell_width_x,
+                simulation_single_node.current.layout.cell_width_y,
                 max_wave_speed,
                 simulation_settings.clf_number,
             )
