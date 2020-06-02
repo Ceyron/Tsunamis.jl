@@ -6,6 +6,8 @@
 using Distributed
 @everywhere using Printf
 
+# The cd are necessary since it seems julia has problems with finding relative
+# paths on remote workers
 @everywhere cd("src/")
 @everywhere include("CartesianBlock.jl")
 @everywhere include("multi_node_setup.jl")
@@ -24,8 +26,8 @@ using Distributed
 # later on
 const offset_x = 0.;
 const offset_y = 0.;
-const num_cells_x = 400;
-const num_cells_y = 400;
+const num_cells_x = 1000;
+const num_cells_y = 1000;
 const time_end = 15.;
 const num_checkpoints = 20;
 const output_name = "multi_run";
@@ -278,18 +280,18 @@ function main()
             fluxes_references[i, j] = @spawnat processor_2d_to_id(i, j, number_of_blocks_x) SWE_Fields(
                 Array{Float64, 2}(
                     undef,
-                    fetch(simulation_multi_node.block_references[i, j]).current.layout.num_interior_cells_x,
-                    fetch(simulation_multi_node.block_references[i, j]).current.layout.num_interior_cells_y,
+                    fetch(simulation_multi_node.block_references[i, j]).current.layout.num_interior_cells_x + 2,
+                    fetch(simulation_multi_node.block_references[i, j]).current.layout.num_interior_cells_y + 2,
                 ),
                 Array{Float64, 2}(
                     undef,
-                    fetch(simulation_multi_node.block_references[i, j]).current.layout.num_interior_cells_x,
-                    fetch(simulation_multi_node.block_references[i, j]).current.layout.num_interior_cells_y,
+                    fetch(simulation_multi_node.block_references[i, j]).current.layout.num_interior_cells_x + 2,
+                    fetch(simulation_multi_node.block_references[i, j]).current.layout.num_interior_cells_y + 2,
                 ),
                 Array{Float64, 2}(
                     undef,
-                    fetch(simulation_multi_node.block_references[i, j]).current.layout.num_interior_cells_x,
-                    fetch(simulation_multi_node.block_references[i, j]).current.layout.num_interior_cells_y,
+                    fetch(simulation_multi_node.block_references[i, j]).current.layout.num_interior_cells_x + 2,
+                    fetch(simulation_multi_node.block_references[i, j]).current.layout.num_interior_cells_y + 2,
                 ),
             )
         end
