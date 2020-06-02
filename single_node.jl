@@ -108,7 +108,10 @@ function main()
     radial_dam_break_imprint_initial_condition!(simulation_single_node)
 
     # Create the netCDF file
-    nc_data_set = create_output_file(simulation_settings, simulation_single_node)
+    nc_data_set = create_output_file(
+        simulation_settings.output_file_name,
+        simulation_single_node
+    )
 
     # Write the initial state to the cdf file
     write_fields!(nc_data_set, simulation_single_node, 1)

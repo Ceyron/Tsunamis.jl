@@ -9,18 +9,18 @@ include("single_node_setup.jl")
 
 # Creates the nc dataset to which we can write
 function create_output_file(
-    simulation_settings::SWE_Simulation_Settings,
+    output_file_name::String,
     simulation_data::SWE_Simulation,
     )
 
     # Interpolate the file name
-    nc_file_name = "$(simulation_settings.output_file_name).nc"
+    nc_file_name = "$(output_file_name).nc"
 
     # If the file already exists, ask the user to overwrite it
     if isfile(nc_file_name)
-        println("WARNING: The file $nc_file_name already exists")
-        println("WARNING: Press enter to overwrite it")
-        readline()
+        #println("WARNING: The file $nc_file_name already exists")
+        #println("WARNING: Press enter to overwrite it")
+        #readline()
         rm(nc_file_name)
     end
 
