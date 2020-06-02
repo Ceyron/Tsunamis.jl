@@ -4,6 +4,7 @@
 
 #import Plots
 using Printf
+using Distributed
 
 # Use Plotly backend in an electron chromium window (nice visuals :D)
 #Plots.plotlyjs()
@@ -69,19 +70,19 @@ function main()
             Boundary_Collection(
                 Boundary(
                     radial_dam_break_get_boundary_type(),
-                    "none"
+                    Future()
                 ),
                 Boundary(
                     radial_dam_break_get_boundary_type(),
-                    "none"
+                    Future()
                 ),
                 Boundary(
                     radial_dam_break_get_boundary_type(),
-                    "none"
+                    Future()
                 ),
                 Boundary(
                     radial_dam_break_get_boundary_type(),
-                    "none"
+                    Future()
                 ),
             ),
         ),

@@ -2,6 +2,7 @@
 Implements the main data structure and all routines of the main simulation loop
 """
 
+using Distributed
 
 mutable struct SWE_Fields
 # Contains the 3 conserved field variables (that depend on 2D-space and time) as
@@ -26,9 +27,11 @@ end
     PASSIVE
 end
 
+# The Future contains a remote reference to the simulation fields on the other
+# process
 struct Boundary
     type::Boundary_Type
-    connector::String
+    connector::Future
 end
 
 # Contains all the 4 edges of a Cartesian Block
