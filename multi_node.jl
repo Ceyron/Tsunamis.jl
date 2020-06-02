@@ -26,8 +26,8 @@ using Distributed
 # later on
 const offset_x = 0.;
 const offset_y = 0.;
-const num_cells_x = 1000;
-const num_cells_y = 1000;
+const num_cells_x = 400;
+const num_cells_y = 400;
 const time_end = 15.;
 const num_checkpoints = 20;
 const output_name = "multi_run";
@@ -96,6 +96,47 @@ function main()
     # using an equidistant cartesian grid
     cell_width_x = domain_size_x / num_cells_x
     cell_width_y = domain_size_y /num_cells_y
+
+    # Create the array of channels. These channels are buffered with one element
+    # and send the domain boundary layer exchange. We need two per edge, since
+    # data has to be sent in both directions
+    #
+    # Since data is only exchanged at the interior edges, the size of this array
+    # equals the number of blocks in the given direction (direction parallel to
+    # the edge normal) minus 1 times the number of blocks in the direction
+    # perpendicular to the edge normal
+    channels_left = Array{RemoteChannel, 2}(
+        undef,
+        number_of_blocks_x,
+        number_of_blocks_y,
+    )
+    channels_top = Array{RemoteChannel, 2}(
+        undef,
+        number_of_blocks_x,
+        number_of_blocks_y,
+    )
+    channels_right = Array{RemoteChannel, 2}(
+        undef,
+        number_of_blocks_x,
+        number_of_blocks_y,
+    )
+    channels_bottom = Array{RemoteChannel, 2}(
+        undef,
+        number_of_blocks_x,
+        number_of_blocks_y,
+    )
+    # TODO: Possible improvement: let the underlying channel reside on the
+    # corresponding processor
+    for i in 1:number_of_blocks_x
+        for j in 1:number_of_blocks_y
+            # Instantiate each channel with a buffer of one
+            channels_left[i, j] = RemoteChannel(() -> Channel{SWE_Copy_Fields}(1))
+            channels_top[i, j] = RemoteChannel(() -> Channel{SWE_Copy_Fields}(1))
+            channels_right[i, j] = RemoteChannel(() -> Channel{SWE_Copy_Fields}(1))
+            channels_bottom[i, j] = RemoteChannel(() -> Channel{SWE_Copy_Fields}(1))
+        end
+    end
+
 
     # Determine how many cells we use per block. We approach it that we try to
     # assign the biggest number without remainder to the n-1 blocks in a
@@ -180,22 +221,29 @@ function main()
                 # Assign the boundaries. The outermost blocks obviously have
                 # true BC at their outer edges. All other edges have the
                 # connected BC with the block next to it
+                #
+                # The connection is realized by RemoteChannels. Convention: The
+                # block is sending on its channel and receiving on the other's
                 Boundary_Collection(
                     Boundary(
                         i > 1 ? CONNECT : radial_dam_break_get_boundary_type(), 
-                        "none"
+                        i > 1 ? channels_left[i, j] : RemoteChannel(),
+                        i > 1 ? channels_right[i-1, j] : RemoteChannel(),
                     ),
                     Boundary(
                         j < number_of_blocks_y ? CONNECT : radial_dam_break_get_boundary_type(),
-                        "none"
+                        j < number_of_blocks_y ? channels_top[i, j] : RemoteChannel(),
+                        j < number_of_blocks_y ? channels_bottom[i, j+1] : RemoteChannel(),
                     ),
                     Boundary(
                         i < number_of_blocks_x ? CONNECT : radial_dam_break_get_boundary_type(),
-                        "none"
+                        i < number_of_blocks_x ? channels_right[i, j] : RemoteChannel(),
+                        i < number_of_blocks_x ? channels_left[i+1, j] : RemoteChannel(),
                     ),
                     Boundary(
-                        i > 1 ? CONNECT : radial_dam_break_get_boundary_type(),
-                        "none"
+                        j > 1 ? CONNECT : radial_dam_break_get_boundary_type(),
+                        j > 1 ? channels_bottom[i, j] : RemoteChannel(),
+                        j > 1 ? channels_top[i, j-1] : RemoteChannel(),
                     ),
                 ),
                 ),
@@ -216,6 +264,45 @@ function main()
     println()
 
 
+    # Set the remote references to the neighbor fields as views on their data array
+    #=
+    @sync for i in 1:simulation_multi_node.block_mesh.number_of_blocks_x
+        for j in 1:simulation_multi_node.block_mesh.number_of_blocks_y
+            # Assign the left boundary connector_from to the right boundary
+            # connector_to from the domain left of it
+            if i > 1
+                @spawnat processor_2d_to_id(i, j, number_of_blocks_x) (
+                    fetch(simulation_multi_node.block_references[i, j]).current.boundaries.left.connector_from =
+                    RemoteChannel(() -> fetch(simulation_multi_node.block_references[i-1, j]).current.boundaries.right.connector_to)
+                )
+            end
+            # Assign the top boundary connector_from to the bottom boundary
+            # connector_to from the domain on top of it 
+            if j < simulation_multi_node.block_mesh.number_of_blocks_y
+                @spawnat processor_2d_to_id(i, j, number_of_blocks_x) (
+                    fetch(simulation_multi_node.block_references[i, j]).current.boundaries.top.connector_from =
+                    RemoteChannel(() -> fetch(simulation_multi_node.block_references[i, j+1]).current.boundaries.bottom.connector_to)
+                )
+            end
+            # Assign the right boundary connector_from to the left boundary
+            # connector_to from the domain right of it
+            if i < simulation_multi_node.block_mesh.number_of_blocks_x
+                @spawnat processor_2d_to_id(i, j, number_of_blocks_x) (
+                    fetch(simulation_multi_node.block_references[i, j]).current.boundaries.right.connector_from =
+                    RemoteChannel(() -> fetch(simulation_multi_node.block_references[i+1, j]).current.boundaries.left.connector_to)
+                )
+            end
+            # Assign the bottom boundary connector_from to the top boundary
+            # connector_to from the domain below of it
+            if j > 1
+                @spawnat processor_2d_to_id(i, j, number_of_blocks_x) (
+                    fetch(simulation_multi_node.block_references[i, j]).current.boundaries.bottom.connector_from =
+                    RemoteChannel(() -> fetch(simulation_multi_node.block_references[i-1, j]).current.boundaries.top.connector_to)
+                )
+            end
+        end
+    end
+    =#
 
     # Instantiate the container for all the selected simulation settings
     simulation_settings = SWE_Simulation_Settings(
@@ -319,8 +406,22 @@ function main()
             # The maximum wave speed is relevant for the CFL condition
             max_wave_speed = 0.0
 
-            # (1) set values in ghost layer
-            #update_boundaries!(simulation_single_node)
+            # (1) set values in ghost layer (either by Boundary Condition of
+            # copied layer from neighboring domain)
+            @sync for i in 1:simulation_multi_node.block_mesh.number_of_blocks_x
+                for j in 1:simulation_multi_node.block_mesh.number_of_blocks_y
+                    @spawnat processor_2d_to_id(i, j, number_of_blocks_x) queue_copy_layer(
+                        fetch(simulation_multi_node.block_references[i, j])
+                    )
+                end
+            end
+            @sync for i in 1:simulation_multi_node.block_mesh.number_of_blocks_x
+                for j in 1:simulation_multi_node.block_mesh.number_of_blocks_y
+                    @spawnat processor_2d_to_id(i, j, number_of_blocks_x) update_boundaries!(
+                        fetch(simulation_multi_node.block_references[i, j])
+                    )
+                end
+            end
 
             # (2) Compute numerical fluxes In our distributed case we hold the
             # future to the wave_speed calculation and can then have a barrier
