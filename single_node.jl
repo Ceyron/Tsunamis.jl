@@ -70,19 +70,23 @@ function main()
             Boundary_Collection(
                 Boundary(
                     radial_dam_break_get_boundary_type(),
-                    Future()
+                    RemoteChannel(),
+                    RemoteChannel(),
                 ),
                 Boundary(
                     radial_dam_break_get_boundary_type(),
-                    Future()
+                    RemoteChannel(),
+                    RemoteChannel(),
                 ),
                 Boundary(
                     radial_dam_break_get_boundary_type(),
-                    Future()
+                    RemoteChannel(),
+                    RemoteChannel(),
                 ),
                 Boundary(
                     radial_dam_break_get_boundary_type(),
-                    Future()
+                    RemoteChannel(),
+                    RemoteChannel(),
                 ),
             ),
         ),

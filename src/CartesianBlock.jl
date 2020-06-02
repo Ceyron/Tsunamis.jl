@@ -27,15 +27,24 @@ end
     PASSIVE
 end
 
+# Contains the one-dimensional fields at the edge of a connected layer that are
+# copied to the process owning the neighboring domain
+mutable struct SWE_Copy_Fields
+    h::Array{Float64, 1}
+    hu::Array{Float64, 1}
+    hv::Array{Float64, 1}
+end
+
 # The Future contains a remote reference to the simulation fields on the other
 # process
-struct Boundary
+mutable struct Boundary
     type::Boundary_Type
-    connector::Future
+    connector_send::RemoteChannel
+    connector_recv::RemoteChannel
 end
 
 # Contains all the 4 edges of a Cartesian Block
-struct Boundary_Collection
+mutable struct Boundary_Collection
     left::Boundary
     top::Boundary
     right::Boundary
