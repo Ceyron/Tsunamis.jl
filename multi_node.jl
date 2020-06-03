@@ -301,7 +301,7 @@ function main()
     )
 
     # Imprint the bathymetry on all blocks
-    @sync for i in 1:simulation_multi_node.block_mesh.number_of_blocks_x
+    for i in 1:simulation_multi_node.block_mesh.number_of_blocks_x
         for j in 1:simulation_multi_node.block_mesh.number_of_blocks_y
             @spawnat processor_2d_to_id(i, j, number_of_blocks_x) radial_dam_break_imprint_bathymetry!(
                 fetch(simulation_multi_node.block_references[i, j])
@@ -310,7 +310,7 @@ function main()
     end
 
     # Imprint the initial condition on all blocks
-    @sync for i in 1:simulation_multi_node.block_mesh.number_of_blocks_x
+    for i in 1:simulation_multi_node.block_mesh.number_of_blocks_x
         for j in 1:simulation_multi_node.block_mesh.number_of_blocks_y
             @spawnat processor_2d_to_id(i, j, number_of_blocks_x) radial_dam_break_imprint_initial_condition!(
                 fetch(simulation_multi_node.block_references[i, j])
@@ -319,7 +319,7 @@ function main()
     end
 
     # Create the netCDF file for each block
-    @sync for i in 1:simulation_multi_node.block_mesh.number_of_blocks_x
+    for i in 1:simulation_multi_node.block_mesh.number_of_blocks_x
         for j in 1:simulation_multi_node.block_mesh.number_of_blocks_y
             simulation_multi_node.nc_data_sets[i, j] =
                 @spawnat processor_2d_to_id(i, j, number_of_blocks_x) create_output_file(
@@ -374,6 +374,13 @@ function main()
         end
     end
 
+    # The futures to the computed wave speeds of every block
+    max_wave_speed_references = Array{Future, 2}(
+        undef,
+        simulation_multi_node.block_mesh.number_of_blocks_x,
+        simulation_multi_node.block_mesh.number_of_blocks_y,
+    )
+
     # Iterate over all checkpoints
     @time for i_checkpoint in 2:num_checkpoints
 
@@ -384,7 +391,7 @@ function main()
                 "/$(simulation_multi_node.time_mesh.time_end)")            
 
             # Clear the flux fields on each node
-            @sync for i in 1:simulation_multi_node.block_mesh.number_of_blocks_x
+            for i in 1:simulation_multi_node.block_mesh.number_of_blocks_x
                 for j in 1:simulation_multi_node.block_mesh.number_of_blocks_y
                     @spawnat processor_2d_to_id(i, j, number_of_blocks_x) fetch(fluxes_references[i, j]).h .= 0.0
                     @spawnat processor_2d_to_id(i, j, number_of_blocks_x) fetch(fluxes_references[i, j]).hu .= 0.0
@@ -398,6 +405,8 @@ function main()
 
             # (1) set values in ghost layer (either by Boundary Condition of
             # copied layer from neighboring domain)
+            # Has to be synced otherwise a
+            # fast processor would look when taking from the channel
             @sync for i in 1:simulation_multi_node.block_mesh.number_of_blocks_x
                 for j in 1:simulation_multi_node.block_mesh.number_of_blocks_y
                     @spawnat processor_2d_to_id(i, j, number_of_blocks_x) queue_copy_layer(
@@ -405,7 +414,7 @@ function main()
                     )
                 end
             end
-            @sync for i in 1:simulation_multi_node.block_mesh.number_of_blocks_x
+            for i in 1:simulation_multi_node.block_mesh.number_of_blocks_x
                 for j in 1:simulation_multi_node.block_mesh.number_of_blocks_y
                     @spawnat processor_2d_to_id(i, j, number_of_blocks_x) update_boundaries!(
                         fetch(simulation_multi_node.block_references[i, j])
@@ -416,15 +425,12 @@ function main()
             # (2) Compute numerical fluxes In our distributed case we hold the
             # future to the wave_speed calculation and can then have a barrier
             # to wait for each flux compuation to finish and find the overall
-            # max wave speed
-            max_wave_speed_references = Array{Future, 2}(
-                undef,
-                simulation_multi_node.block_mesh.number_of_blocks_x,
-                simulation_multi_node.block_mesh.number_of_blocks_y,
-            )
-            # Spawn the task to compute the numerical fluxes on each block by
-            # its corresponding processor
-            for i in 1:simulation_multi_node.block_mesh.number_of_blocks_x
+            # max wave speed Spawn the task to compute the numerical fluxes on
+            # each block by its corresponding processor
+            #
+            # Has to be synced otherwise the Futures for the array of references
+            # Instantiated outside the main loop would not be overwritten
+            @sync for i in 1:simulation_multi_node.block_mesh.number_of_blocks_x
                 for j in 1:simulation_multi_node.block_mesh.number_of_blocks_y
                     max_wave_speed_references[i, j] = @spawnat processor_2d_to_id(i, j, number_of_blocks_x) calculate_numerical_fluxes!(
                         fetch(fluxes_references[i, j]),
@@ -452,7 +458,7 @@ function main()
             )
 
             # (4) Update the cell values Godunov style first order
-            @sync for i in 1:simulation_multi_node.block_mesh.number_of_blocks_x
+            for i in 1:simulation_multi_node.block_mesh.number_of_blocks_x
                 for j in 1:simulation_multi_node.block_mesh.number_of_blocks_y
                     @spawnat processor_2d_to_id(i, j, number_of_blocks_x) update_cells!(
                         fetch(simulation_multi_node.block_references[i, j]),
