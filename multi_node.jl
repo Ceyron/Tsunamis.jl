@@ -294,47 +294,6 @@ function main()
     end
     println()
 
-
-    # Set the remote references to the neighbor fields as views on their data array
-    #=
-    @sync for i in 1:simulation_multi_node.block_mesh.number_of_blocks_x
-        for j in 1:simulation_multi_node.block_mesh.number_of_blocks_y
-            # Assign the left boundary connector_from to the right boundary
-            # connector_to from the domain left of it
-            if i > 1
-                @spawnat processor_2d_to_id(i, j, number_of_blocks_x) (
-                    fetch(simulation_multi_node.block_references[i, j]).current.boundaries.left.connector_from =
-                    RemoteChannel(() -> fetch(simulation_multi_node.block_references[i-1, j]).current.boundaries.right.connector_to)
-                )
-            end
-            # Assign the top boundary connector_from to the bottom boundary
-            # connector_to from the domain on top of it 
-            if j < simulation_multi_node.block_mesh.number_of_blocks_y
-                @spawnat processor_2d_to_id(i, j, number_of_blocks_x) (
-                    fetch(simulation_multi_node.block_references[i, j]).current.boundaries.top.connector_from =
-                    RemoteChannel(() -> fetch(simulation_multi_node.block_references[i, j+1]).current.boundaries.bottom.connector_to)
-                )
-            end
-            # Assign the right boundary connector_from to the left boundary
-            # connector_to from the domain right of it
-            if i < simulation_multi_node.block_mesh.number_of_blocks_x
-                @spawnat processor_2d_to_id(i, j, number_of_blocks_x) (
-                    fetch(simulation_multi_node.block_references[i, j]).current.boundaries.right.connector_from =
-                    RemoteChannel(() -> fetch(simulation_multi_node.block_references[i+1, j]).current.boundaries.left.connector_to)
-                )
-            end
-            # Assign the bottom boundary connector_from to the top boundary
-            # connector_to from the domain below of it
-            if j > 1
-                @spawnat processor_2d_to_id(i, j, number_of_blocks_x) (
-                    fetch(simulation_multi_node.block_references[i, j]).current.boundaries.bottom.connector_from =
-                    RemoteChannel(() -> fetch(simulation_multi_node.block_references[i-1, j]).current.boundaries.top.connector_to)
-                )
-            end
-        end
-    end
-    =#
-
     # Instantiate the container for all the selected simulation settings
     simulation_settings = SWE_Simulation_Settings(
         output_name,
