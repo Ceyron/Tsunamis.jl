@@ -5,9 +5,7 @@
 #import Plots
 using Printf
 using Distributed
-
-# Use Plotly backend in an electron chromium window (nice visuals :D)
-#Plots.plotlyjs()
+using ArgParse
 
 include("src/CartesianBlock.jl")
 include("src/single_node_setup.jl")
@@ -21,14 +19,38 @@ include("src/boundary.jl")
 # later on
 const offset_x = 0.;
 const offset_y = 0.;
-const num_cells_x = 400;
-const num_cells_y = 400;
 const time_end = 15.;
-const num_checkpoints = 20;
-const output_name = "single_run";
 const cfl_number = 0.4;
 
 function main()
+
+    # Parsing the arguments
+    arg_parse_settings = ArgParseSettings()
+    @add_arg_table! arg_parse_settings begin
+        "-x"
+            help = "number of cells in x"
+            arg_type = Int
+            default = 400
+        "-y"
+            help = "number of cells in y"
+            arg_type = Int
+            default = 400
+        "-o"
+            help = "output_file_name"
+            arg_type = String
+            default = "test"
+        "-c"
+            help = "number of checkpoints"
+            arg_type = Int
+            default = 20
+    end
+
+    parsed_args = parse_args(arg_parse_settings)
+    num_cells_x = parsed_args["x"]
+    num_cells_y = parsed_args["y"]
+    output_name = parsed_args["o"]
+    num_checkpoints = parsed_args["c"]
+
     println()
     println("Welcome to the SWE solver using Julia")
     println("-------------------------------------")
