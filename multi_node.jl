@@ -156,15 +156,15 @@ function main()
         number_of_blocks_x,
         number_of_blocks_y,
     )
-    # TODO: Possible improvement: let the underlying channel reside on the
-    # corresponding processor
+    # Instantiate the RemoteChannels with the underlying Channel structure being
+    # located on the respective core
     for i in 1:number_of_blocks_x
         for j in 1:number_of_blocks_y
             # Instantiate each channel with a buffer of one
-            channels_left[i, j] = RemoteChannel(() -> Channel{SWE_Copy_Fields}(1))
-            channels_top[i, j] = RemoteChannel(() -> Channel{SWE_Copy_Fields}(1))
-            channels_right[i, j] = RemoteChannel(() -> Channel{SWE_Copy_Fields}(1))
-            channels_bottom[i, j] = RemoteChannel(() -> Channel{SWE_Copy_Fields}(1))
+            channels_left[i, j] = RemoteChannel(() -> Channel{SWE_Copy_Fields}(1), processor_2d_to_id(i, j, number_of_blocks_x))
+            channels_top[i, j] = RemoteChannel(() -> Channel{SWE_Copy_Fields}(1), processor_2d_to_id(i, j, number_of_blocks_x))
+            channels_right[i, j] = RemoteChannel(() -> Channel{SWE_Copy_Fields}(1), processor_2d_to_id(i, j, number_of_blocks_x))
+            channels_bottom[i, j] = RemoteChannel(() -> Channel{SWE_Copy_Fields}(1), processor_2d_to_id(i, j, number_of_blocks_x))
         end
     end
 
@@ -210,86 +210,86 @@ function main()
             )
 
             simulation_multi_node.block_references[i, j] =
-                @spawnat processor_2d_to_id(i, j, number_of_blocks_x) SWE_Simulation(Simulation_Block(Layout(
-                    # Calculate the offset by the position of the block_mesh
-                    simulation_multi_node.block_mesh.block_mesh_x[i],
-                    simulation_multi_node.block_mesh.block_mesh_y[j],
-                    # Set the size of this simulation block (not including the
-                    # halo cells)
-                    simulation_multi_node.block_mesh.block_mesh_x[i+1] -
-                        simulation_multi_node.block_mesh.block_mesh_x[i],
-                    simulation_multi_node.block_mesh.block_mesh_y[j+1] -
-                        simulation_multi_node.block_mesh.block_mesh_y[j],
-                    # Set the number of cells for this block
-                    number_of_cells_this_block_x,
-                    number_of_cells_this_block_y,
-                    # Set the cell widths
-                    cell_width_x,
-                    cell_width_y,
-                    # Create the mesh for within the block
-                    range(
-                        simulation_multi_node.block_mesh.block_mesh_x[i],
-                        simulation_multi_node.block_mesh.block_mesh_x[i+1];
-                        length=number_of_cells_this_block_x+1
+                @spawnat processor_2d_to_id(i, j, number_of_blocks_x) SWE_Simulation(
+                    Simulation_Block(
+                        Layout(
+                            # Calculate the offset by the position of the block_mesh
+                            simulation_multi_node.block_mesh.block_mesh_x[i],
+                            simulation_multi_node.block_mesh.block_mesh_y[j],
+                            # Set the size of this simulation block (not including the
+                            # halo cells)
+                            simulation_multi_node.block_mesh.block_mesh_x[i+1] -
+                                simulation_multi_node.block_mesh.block_mesh_x[i],
+                            simulation_multi_node.block_mesh.block_mesh_y[j+1] -
+                                simulation_multi_node.block_mesh.block_mesh_y[j],
+                            # Set the number of cells for this block
+                            number_of_cells_this_block_x,
+                            number_of_cells_this_block_y,
+                            # Set the cell widths
+                            cell_width_x,
+                            cell_width_y,
+                            # Create the mesh for within the block
+                            range(
+                                simulation_multi_node.block_mesh.block_mesh_x[i],
+                                simulation_multi_node.block_mesh.block_mesh_x[i+1];
+                                length=number_of_cells_this_block_x+1
+                            ),
+                            range(
+                                simulation_multi_node.block_mesh.block_mesh_y[j],
+                                simulation_multi_node.block_mesh.block_mesh_y[j+1];
+                                length=number_of_cells_this_block_y+1
+                            ),
+                        ),
+                        # These arrays save the field quantities (h, hu, hv). We have to
+                        # add one cell in each direction. This will be used as a halo
+                        # cell either for imprinting the Boundary Condition or for
+                        # exchanging with the neighbor domain
+                        SWE_Fields(
+                            zeros(number_of_cells_this_block_x + 2, number_of_cells_this_block_y + 2),
+                            zeros(number_of_cells_this_block_x + 2, number_of_cells_this_block_y + 2),
+                            zeros(number_of_cells_this_block_x + 2, number_of_cells_this_block_y + 2),
+                        ),
+                        # The bathymetry data
+                        zeros(number_of_cells_this_block_x + 2, number_of_cells_this_block_y + 2),
+                        # Assign the boundaries. The outermost blocks obviously have
+                        # true BC at their outer edges. All other edges have the
+                        # connected BC with the block next to it
+                        #
+                        # The connection is realized by RemoteChannels. Convention: The
+                        # block is sending on its channel and receiving on the other's
+                        Boundary_Collection(
+                            Boundary(
+                                i > 1 ? CONNECT : radial_dam_break_get_boundary_type(), 
+                                i > 1 ? channels_left[i, j] : RemoteChannel(),
+                                i > 1 ? channels_right[i-1, j] : RemoteChannel(),
+                            ),
+                            Boundary(
+                                j < number_of_blocks_y ? CONNECT : radial_dam_break_get_boundary_type(),
+                                j < number_of_blocks_y ? channels_top[i, j] : RemoteChannel(),
+                                j < number_of_blocks_y ? channels_bottom[i, j+1] : RemoteChannel(),
+                            ),
+                            Boundary(
+                                i < number_of_blocks_x ? CONNECT : radial_dam_break_get_boundary_type(),
+                                i < number_of_blocks_x ? channels_right[i, j] : RemoteChannel(),
+                                i < number_of_blocks_x ? channels_left[i+1, j] : RemoteChannel(),
+                            ),
+                            Boundary(
+                                j > 1 ? CONNECT : radial_dam_break_get_boundary_type(),
+                                j > 1 ? channels_bottom[i, j] : RemoteChannel(),
+                                j > 1 ? channels_top[i, j-1] : RemoteChannel(),
+                            ),
+                        ),
                     ),
-                    range(
-                        simulation_multi_node.block_mesh.block_mesh_y[j],
-                        simulation_multi_node.block_mesh.block_mesh_y[j+1];
-                        length=number_of_cells_this_block_y+1
+                    # Contains information on the time integration
+                    Time_Mesh(
+                        time_end,
+                        num_checkpoints,
+                        range(0, time_end; length=num_checkpoints),
                     ),
-                ),
-                # These arrays save the field quantities (h, hu, hv). We have to
-                # add one cell in each direction. This will be used as a halo
-                # cell either for imprinting the Boundary Condition or for
-                # exchanging with the neighbor domain
-                SWE_Fields(
-                    zeros(number_of_cells_this_block_x + 2, number_of_cells_this_block_y + 2),
-                    zeros(number_of_cells_this_block_x + 2, number_of_cells_this_block_y + 2),
-                    zeros(number_of_cells_this_block_x + 2, number_of_cells_this_block_y + 2),
-                ),
-                # The bathymetry data
-                zeros(number_of_cells_this_block_x + 2, number_of_cells_this_block_y + 2),
-                # Assign the boundaries. The outermost blocks obviously have
-                # true BC at their outer edges. All other edges have the
-                # connected BC with the block next to it
-                #
-                # The connection is realized by RemoteChannels. Convention: The
-                # block is sending on its channel and receiving on the other's
-                Boundary_Collection(
-                    Boundary(
-                        i > 1 ? CONNECT : radial_dam_break_get_boundary_type(), 
-                        i > 1 ? channels_left[i, j] : RemoteChannel(),
-                        i > 1 ? channels_right[i-1, j] : RemoteChannel(),
-                    ),
-                    Boundary(
-                        j < number_of_blocks_y ? CONNECT : radial_dam_break_get_boundary_type(),
-                        j < number_of_blocks_y ? channels_top[i, j] : RemoteChannel(),
-                        j < number_of_blocks_y ? channels_bottom[i, j+1] : RemoteChannel(),
-                    ),
-                    Boundary(
-                        i < number_of_blocks_x ? CONNECT : radial_dam_break_get_boundary_type(),
-                        i < number_of_blocks_x ? channels_right[i, j] : RemoteChannel(),
-                        i < number_of_blocks_x ? channels_left[i+1, j] : RemoteChannel(),
-                    ),
-                    Boundary(
-                        j > 1 ? CONNECT : radial_dam_break_get_boundary_type(),
-                        j > 1 ? channels_bottom[i, j] : RemoteChannel(),
-                        j > 1 ? channels_top[i, j-1] : RemoteChannel(),
-                    ),
-                ),
-                ),
-
-                # Contains information on the time integration
-                Time_Mesh(
-                    time_end,
-                    num_checkpoints,
-                    range(0, time_end; length=num_checkpoints),
-                ),
-                # Set initial time to zero, but this quantity won't be mutated.
-                # Just for compatibility with the single-node implementation
-                0.0
+                    # Set initial time to zero, but this quantity won't be mutated.
+                    # Just for compatibility with the single-node implementation
+                    0.0
                 )
-
         end
     end
     println()
