@@ -4,6 +4,7 @@
 # Start it with julia -p NUM_PROCESSORS or with the help of the machine list
 
 using Distributed
+using ArgParse
 @everywhere using Printf
 
 # The cd are necessary since it seems julia has problems with finding relative
@@ -26,11 +27,7 @@ using Distributed
 # later on
 const offset_x = 0.;
 const offset_y = 0.;
-const num_cells_x = 400;
-const num_cells_y = 400;
 const time_end = 15.;
-const num_checkpoints = 20;
-const output_name = "multi_run";
 const cfl_number = 0.4;
 
 # Given the the number of processors available, try to distribute the the number
@@ -51,9 +48,43 @@ end
 end
 
 function main()
+    # Parsing the arguments
+    arg_parse_settings = ArgParseSettings()
+    @add_arg_table! arg_parse_settings begin
+        "-x"
+            help = "number of cells in x"
+            arg_type = Int
+            default = 400
+        "-y"
+            help = "number of cells in y"
+            arg_type = Int
+            default = 400
+        "-o"
+            help = "output_file_name"
+            arg_type = String
+            default = "multi_test"
+        "-c"
+            help = "number of checkpoints"
+            arg_type = Int
+            default = 20
+    end
+
+    parsed_args = parse_args(arg_parse_settings)
+    num_cells_x = parsed_args["x"]
+    num_cells_y = parsed_args["y"]
+    output_name = parsed_args["o"]
+    num_checkpoints = parsed_args["c"]
+
+
     println()
     println("Welcome to the distributed SWE equation solver")
     println("This solver is distributed using Julia's builtin primitives")
+    println("----------------------------------------------------------")
+    if nprocs() == 1
+        println("ERROR: You have to start this program in Julia'a multiprocessing mode")
+        println("ERROR: do julia -p [NUM_CORES] multi_node.jl [ARGS]")
+        exit(1)
+    end
     number_of_processors = nworkers()
     number_of_blocks_y::Int = compute_number_of_block_rows(number_of_processors)
     number_of_blocks_x::Int = number_of_processors / number_of_blocks_y
