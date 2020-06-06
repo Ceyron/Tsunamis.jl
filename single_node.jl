@@ -43,6 +43,9 @@ function main()
             help = "number of checkpoints"
             arg_type = Int
             default = 20
+        "--no-io"
+            help = "Do not write an output file"
+            action = :store_true
     end
 
     parsed_args = parse_args(arg_parse_settings)
@@ -50,6 +53,7 @@ function main()
     num_cells_y = parsed_args["y"]
     output_name = parsed_args["o"]
     num_checkpoints = parsed_args["c"]
+    no_io = parsed_args["no-io"]
 
     println()
     println("Welcome to the SWE solver using Julia")
@@ -135,13 +139,17 @@ function main()
     radial_dam_break_imprint_initial_condition!(simulation_single_node)
 
     # Create the netCDF file
-    nc_data_set = create_output_file(
-        simulation_settings.output_file_name,
-        simulation_single_node
-    )
+    if !no_io
+        nc_data_set = create_output_file(
+            simulation_settings.output_file_name,
+            simulation_single_node
+        )
+    end
 
     # Write the initial state to the cdf file
-    write_fields!(nc_data_set, simulation_single_node, 1)
+    if !no_io
+        write_fields!(nc_data_set, simulation_single_node, 1)
+    end
     # Instantiate the flux field struct to be used over the iterations, they
     # contain the accumulated (~= cummulative) fluxes summed up from the fluxes
     # over each edge For loop convenience in the update routines we also
@@ -197,18 +205,15 @@ function main()
         end
 
         # Save the fields
-        println("-> Saving Fields")
-        write_fields!(nc_data_set, simulation_single_node, i_checkpoint)
+        if !no_io
+            println("-> Saving Fields")
+            write_fields!(nc_data_set, simulation_single_node, i_checkpoint)
+        end
     end
-
-
-
     # Close the connection to the dataset handle
-    close_output_file(nc_data_set)
-
-
-
-
+    if !no_io
+        close_output_file(nc_data_set)
+    end
 end
 
 
