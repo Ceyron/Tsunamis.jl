@@ -356,6 +356,9 @@ function main()
         simulation_multi_node.block_mesh.number_of_blocks_y,
     )
 
+    # Iteration counter
+    num_iterations::UInt64 = 0
+
     # Iterate over all checkpoints
     @time for i_checkpoint in 2:num_checkpoints
 
@@ -364,6 +367,9 @@ function main()
                 simulation_multi_node.time_mesh.time_nodes[i_checkpoint]
             println("Simulating at time $(simulation_multi_node.time)",
                 "/$(simulation_multi_node.time_mesh.time_end)")            
+
+            # Increment the iteration counter
+            num_iterations += 1
 
             # Clear the flux fields on each node
             fluxes_references = Array{Future, 2}(
@@ -474,6 +480,10 @@ function main()
             end
         end
     end
+
+    println()
+    println("Number of iterations: $num_iterations")
+    println()
 
     # Close the connection to the dataset handle
     if !no_io

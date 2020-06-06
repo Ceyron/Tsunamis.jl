@@ -161,6 +161,9 @@ function main()
         Array{Float64, 2}(undef, num_cells_x + 2, num_cells_y + 2),
     )
 
+    # The iteration counter
+    num_iterations::UInt64 = 0
+
     # Iterate over all checkpoints
     @time for i_checkpoint in 2:num_checkpoints
 
@@ -169,6 +172,9 @@ function main()
                 simulation_single_node.time_mesh.time_nodes[i_checkpoint]
             println("Simulating at time $(simulation_single_node.time)",
                 "/$(simulation_single_node.time_mesh.time_end)")            
+
+            # Increment the iteration counter
+            num_iterations += 1
 
             # Clear the flux fields
             fluxes.h .= 0.0
@@ -210,6 +216,11 @@ function main()
             write_fields!(nc_data_set, simulation_single_node, i_checkpoint)
         end
     end
+
+    println()
+    println("Number of iterations: $num_iterations")
+    println()
+
     # Close the connection to the dataset handle
     if !no_io
         close_output_file(nc_data_set)
