@@ -187,24 +187,6 @@ function solve_riemann_hlle(
         eigenvalues[1] 0.0 eigenvalues[3];
         eigenvalues[1]^2 1.0 eigenvalues[3]^2 
     ]
-    #=
-        StaticArrays.SA_F64[
-            1.0,
-            0.0,
-            1.0,
-        ],
-        StaticArrays.SA_F64[
-            eigenvalues[1],
-            0.0,
-            eigenvalues[3],
-        ],
-        StaticArrays.SA_F64[
-            eigenvalues[1] * eigenvalues[1],
-            1.0,
-            eigenvalues[3] * eigenvalues[3],
-        ],
-    ]
-    =#
 
     # compute the jump in state, this will be the rhs of system of Equations
     right_hand_side = StaticArrays.MVector(
