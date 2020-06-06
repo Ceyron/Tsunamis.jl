@@ -355,6 +355,31 @@ function main()
         simulation_multi_node.block_mesh.number_of_blocks_x,
         simulation_multi_node.block_mesh.number_of_blocks_y,
     )
+    
+    # references to the flux fields on each processor
+    fluxes_references = Array{Future, 2}(
+        undef,
+        simulation_multi_node.block_mesh.number_of_blocks_x,
+        simulation_multi_node.block_mesh.number_of_blocks_y,
+    )
+    for i in 1:simulation_multi_node.block_mesh.number_of_blocks_x
+        for j in 1:simulation_multi_node.block_mesh.number_of_blocks_y
+            fluxes_references[i, j] = @spawnat processor_2d_to_id(i, j, number_of_blocks_x) SWE_Fields(
+                zeros(
+                    fetch(simulation_multi_node.block_references[i, j]).current.layout.num_interior_cells_x + 2,
+                    fetch(simulation_multi_node.block_references[i, j]).current.layout.num_interior_cells_y + 2,
+                ),
+                zeros(
+                    fetch(simulation_multi_node.block_references[i, j]).current.layout.num_interior_cells_x + 2,
+                    fetch(simulation_multi_node.block_references[i, j]).current.layout.num_interior_cells_y + 2,
+                ),
+                zeros(
+                    fetch(simulation_multi_node.block_references[i, j]).current.layout.num_interior_cells_x + 2,
+                    fetch(simulation_multi_node.block_references[i, j]).current.layout.num_interior_cells_y + 2,
+                ),
+            )
+        end
+    end
 
     # Iteration counter
     num_iterations::UInt64 = 0
@@ -372,27 +397,11 @@ function main()
             num_iterations += 1
 
             # Clear the flux fields on each node
-            fluxes_references = Array{Future, 2}(
-                undef,
-                simulation_multi_node.block_mesh.number_of_blocks_x,
-                simulation_multi_node.block_mesh.number_of_blocks_y,
-            )
             for i in 1:simulation_multi_node.block_mesh.number_of_blocks_x
                 for j in 1:simulation_multi_node.block_mesh.number_of_blocks_y
-                    fluxes_references[i, j] = @spawnat processor_2d_to_id(i, j, number_of_blocks_x) SWE_Fields(
-                        zeros(
-                            fetch(simulation_multi_node.block_references[i, j]).current.layout.num_interior_cells_x + 2,
-                            fetch(simulation_multi_node.block_references[i, j]).current.layout.num_interior_cells_y + 2,
-                        ),
-                        zeros(
-                            fetch(simulation_multi_node.block_references[i, j]).current.layout.num_interior_cells_x + 2,
-                            fetch(simulation_multi_node.block_references[i, j]).current.layout.num_interior_cells_y + 2,
-                        ),
-                        zeros(
-                            fetch(simulation_multi_node.block_references[i, j]).current.layout.num_interior_cells_x + 2,
-                            fetch(simulation_multi_node.block_references[i, j]).current.layout.num_interior_cells_y + 2,
-                        ),
-                    )
+                    @spawnat processor_2d_to_id(i, j, number_of_blocks_x) fetch(fluxes_references[i, j]).h .= 0.0
+                    @spawnat processor_2d_to_id(i, j, number_of_blocks_x) fetch(fluxes_references[i, j]).hu .= 0.0
+                    @spawnat processor_2d_to_id(i, j, number_of_blocks_x) fetch(fluxes_references[i, j]).hv .= 0.0
                 end
             end
 
