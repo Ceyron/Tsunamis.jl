@@ -67,6 +67,10 @@ function main()
             help = "number of checkpoints"
             arg_type = Int
             default = 20
+        "--no-io"
+            help = "Do not output to netcdf"
+            action = :store_true
+            default = false
     end
 
     parsed_args = parse_args(arg_parse_settings)
@@ -74,6 +78,7 @@ function main()
     num_cells_y = parsed_args["y"]
     output_name = parsed_args["o"]
     num_checkpoints = parsed_args["c"]
+    no_io::Bool = parsed_args["no-io"]
 
 
     println()
@@ -260,23 +265,23 @@ function main()
                         Boundary_Collection(
                             Boundary(
                                 i > 1 ? CONNECT : radial_dam_break_get_boundary_type(), 
-                                i > 1 ? channels_left[i, j] : RemoteChannel(),
-                                i > 1 ? channels_right[i-1, j] : RemoteChannel(),
+                                i > 1 ? channels_left[i-1, j] : RemoteChannel(),
+                                i > 1 ? channels_right[i, j] : RemoteChannel(),
                             ),
                             Boundary(
                                 j < number_of_blocks_y ? CONNECT : radial_dam_break_get_boundary_type(),
-                                j < number_of_blocks_y ? channels_top[i, j] : RemoteChannel(),
-                                j < number_of_blocks_y ? channels_bottom[i, j+1] : RemoteChannel(),
+                                j < number_of_blocks_y ? channels_top[i, j+1] : RemoteChannel(),
+                                j < number_of_blocks_y ? channels_bottom[i, j] : RemoteChannel(),
                             ),
                             Boundary(
                                 i < number_of_blocks_x ? CONNECT : radial_dam_break_get_boundary_type(),
-                                i < number_of_blocks_x ? channels_right[i, j] : RemoteChannel(),
-                                i < number_of_blocks_x ? channels_left[i+1, j] : RemoteChannel(),
+                                i < number_of_blocks_x ? channels_right[i+1, j] : RemoteChannel(),
+                                i < number_of_blocks_x ? channels_left[i, j] : RemoteChannel(),
                             ),
                             Boundary(
                                 j > 1 ? CONNECT : radial_dam_break_get_boundary_type(),
-                                j > 1 ? channels_bottom[i, j] : RemoteChannel(),
-                                j > 1 ? channels_top[i, j-1] : RemoteChannel(),
+                                j > 1 ? channels_bottom[i, j-1] : RemoteChannel(),
+                                j > 1 ? channels_top[i, j] : RemoteChannel(),
                             ),
                         ),
                     ),
@@ -319,24 +324,28 @@ function main()
     end
 
     # Create the netCDF file for each block
-    for i in 1:simulation_multi_node.block_mesh.number_of_blocks_x
-        for j in 1:simulation_multi_node.block_mesh.number_of_blocks_y
-            simulation_multi_node.nc_data_sets[i, j] =
-                @spawnat processor_2d_to_id(i, j, number_of_blocks_x) create_output_file(
-                "$(simulation_settings.output_file_name)_$(processor_2d_to_id(i, j, number_of_blocks_x))",
-                fetch(simulation_multi_node.block_references[i, j])
-            )
+    if !no_io
+        for i in 1:simulation_multi_node.block_mesh.number_of_blocks_x
+            for j in 1:simulation_multi_node.block_mesh.number_of_blocks_y
+                simulation_multi_node.nc_data_sets[i, j] =
+                    @spawnat processor_2d_to_id(i, j, number_of_blocks_x) create_output_file(
+                    "$(simulation_settings.output_file_name)_$(processor_2d_to_id(i, j, number_of_blocks_x))",
+                    fetch(simulation_multi_node.block_references[i, j])
+                )
+            end
         end
     end
 
     # Write the initial state to the cdf file for each block
-    @sync for i in 1:simulation_multi_node.block_mesh.number_of_blocks_x
-        for j in 1:simulation_multi_node.block_mesh.number_of_blocks_y
-            @spawnat processor_2d_to_id(i, j, number_of_blocks_x) write_fields!(
-                fetch(simulation_multi_node.nc_data_sets[i, j]),
-                fetch(simulation_multi_node.block_references[i, j]),
-                1
-            )
+    if !no_io
+        @sync for i in 1:simulation_multi_node.block_mesh.number_of_blocks_x
+            for j in 1:simulation_multi_node.block_mesh.number_of_blocks_y
+                @spawnat processor_2d_to_id(i, j, number_of_blocks_x) write_fields!(
+                    fetch(simulation_multi_node.nc_data_sets[i, j]),
+                    fetch(simulation_multi_node.block_references[i, j]),
+                    1
+                )
+            end
         end
     end
 
@@ -452,28 +461,31 @@ function main()
         end
 
         # Save the fields
-        println("-> Saving Fields")
-        for i in 1:simulation_multi_node.block_mesh.number_of_blocks_x
-            for j in 1:simulation_multi_node.block_mesh.number_of_blocks_y
-                @spawnat processor_2d_to_id(i, j, number_of_blocks_x) write_fields!(
-                    fetch(simulation_multi_node.nc_data_sets[i, j]),
-                    fetch(simulation_multi_node.block_references[i, j]),
-                    i_checkpoint,
-                )
+        if !no_io
+            println("-> Saving Fields")
+            for i in 1:simulation_multi_node.block_mesh.number_of_blocks_x
+                for j in 1:simulation_multi_node.block_mesh.number_of_blocks_y
+                    @spawnat processor_2d_to_id(i, j, number_of_blocks_x) write_fields!(
+                        fetch(simulation_multi_node.nc_data_sets[i, j]),
+                        fetch(simulation_multi_node.block_references[i, j]),
+                        i_checkpoint,
+                    )
+                end
             end
         end
     end
 
     # Close the connection to the dataset handle
-    for i in 1:simulation_multi_node.block_mesh.number_of_blocks_x
-        for j in 1:simulation_multi_node.block_mesh.number_of_blocks_y
-            @spawnat processor_2d_to_id(i, j, number_of_blocks_x) close_output_file(
-                fetch(simulation_multi_node.nc_data_sets[i, j])
-            )
+    if !no_io
+        for i in 1:simulation_multi_node.block_mesh.number_of_blocks_x
+            for j in 1:simulation_multi_node.block_mesh.number_of_blocks_y
+                @spawnat processor_2d_to_id(i, j, number_of_blocks_x) close_output_file(
+                    fetch(simulation_multi_node.nc_data_sets[i, j])
+                )
+            end
         end
     end
 end
-
 
 # Start the main function
 @time main()
