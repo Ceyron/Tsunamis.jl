@@ -339,40 +339,6 @@ function main()
             )
         end
     end
-    # Instantiate the flux field struct to be used over the iterations, they
-    # contain the accumulated (~= cummulative) fluxes summed up from the fluxes
-    # over each edge
-    # For loop convenience in the update routines we also
-    # calculate flux summations for the halo cells (bottom and left) even though they are not
-    # updated
-    #
-    # We save the references to the flux fields on each processor
-    fluxes_references = Array{Future, 2}(
-        undef,
-        simulation_multi_node.block_mesh.number_of_blocks_x,
-        simulation_multi_node.block_mesh.number_of_blocks_y,
-    )
-    for i in 1:simulation_multi_node.block_mesh.number_of_blocks_x
-        for j in 1:simulation_multi_node.block_mesh.number_of_blocks_y
-            fluxes_references[i, j] = @spawnat processor_2d_to_id(i, j, number_of_blocks_x) SWE_Fields(
-                Array{Float64, 2}(
-                    undef,
-                    fetch(simulation_multi_node.block_references[i, j]).current.layout.num_interior_cells_x + 2,
-                    fetch(simulation_multi_node.block_references[i, j]).current.layout.num_interior_cells_y + 2,
-                ),
-                Array{Float64, 2}(
-                    undef,
-                    fetch(simulation_multi_node.block_references[i, j]).current.layout.num_interior_cells_x + 2,
-                    fetch(simulation_multi_node.block_references[i, j]).current.layout.num_interior_cells_y + 2,
-                ),
-                Array{Float64, 2}(
-                    undef,
-                    fetch(simulation_multi_node.block_references[i, j]).current.layout.num_interior_cells_x + 2,
-                    fetch(simulation_multi_node.block_references[i, j]).current.layout.num_interior_cells_y + 2,
-                ),
-            )
-        end
-    end
 
     # The futures to the computed wave speeds of every block
     max_wave_speed_references = Array{Future, 2}(
@@ -391,11 +357,27 @@ function main()
                 "/$(simulation_multi_node.time_mesh.time_end)")            
 
             # Clear the flux fields on each node
+            fluxes_references = Array{Future, 2}(
+                undef,
+                simulation_multi_node.block_mesh.number_of_blocks_x,
+                simulation_multi_node.block_mesh.number_of_blocks_y,
+            )
             for i in 1:simulation_multi_node.block_mesh.number_of_blocks_x
                 for j in 1:simulation_multi_node.block_mesh.number_of_blocks_y
-                    @spawnat processor_2d_to_id(i, j, number_of_blocks_x) fetch(fluxes_references[i, j]).h .= 0.0
-                    @spawnat processor_2d_to_id(i, j, number_of_blocks_x) fetch(fluxes_references[i, j]).hu .= 0.0
-                    @spawnat processor_2d_to_id(i, j, number_of_blocks_x) fetch(fluxes_references[i, j]).hv .= 0.0
+                    fluxes_references[i, j] = @spawnat processor_2d_to_id(i, j, number_of_blocks_x) SWE_Fields(
+                        zeros(
+                            fetch(simulation_multi_node.block_references[i, j]).current.layout.num_interior_cells_x + 2,
+                            fetch(simulation_multi_node.block_references[i, j]).current.layout.num_interior_cells_y + 2,
+                        ),
+                        zeros(
+                            fetch(simulation_multi_node.block_references[i, j]).current.layout.num_interior_cells_x + 2,
+                            fetch(simulation_multi_node.block_references[i, j]).current.layout.num_interior_cells_y + 2,
+                        ),
+                        zeros(
+                            fetch(simulation_multi_node.block_references[i, j]).current.layout.num_interior_cells_x + 2,
+                            fetch(simulation_multi_node.block_references[i, j]).current.layout.num_interior_cells_y + 2,
+                        ),
+                    )
                 end
             end
 
@@ -407,7 +389,7 @@ function main()
             # copied layer from neighboring domain)
             # Has to be synced otherwise a
             # fast processor would look when taking from the channel
-            @sync for i in 1:simulation_multi_node.block_mesh.number_of_blocks_x
+            for i in 1:simulation_multi_node.block_mesh.number_of_blocks_x
                 for j in 1:simulation_multi_node.block_mesh.number_of_blocks_y
                     @spawnat processor_2d_to_id(i, j, number_of_blocks_x) queue_copy_layer(
                         fetch(simulation_multi_node.block_references[i, j])
@@ -427,10 +409,7 @@ function main()
             # to wait for each flux compuation to finish and find the overall
             # max wave speed Spawn the task to compute the numerical fluxes on
             # each block by its corresponding processor
-            #
-            # Has to be synced otherwise the Futures for the array of references
-            # Instantiated outside the main loop would not be overwritten
-            @sync for i in 1:simulation_multi_node.block_mesh.number_of_blocks_x
+            for i in 1:simulation_multi_node.block_mesh.number_of_blocks_x
                 for j in 1:simulation_multi_node.block_mesh.number_of_blocks_y
                     max_wave_speed_references[i, j] = @spawnat processor_2d_to_id(i, j, number_of_blocks_x) calculate_numerical_fluxes!(
                         fetch(fluxes_references[i, j]),
