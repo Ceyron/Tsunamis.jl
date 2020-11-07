@@ -1,5 +1,7 @@
 # Tsunamis.jl - A Finite Volume Shallow Water Equation Solver for Julia
 
+![Example Simulation](https://user-images.githubusercontent.com/27728103/98440662-423ae180-20fa-11eb-8465-ffcc7140d311.gif)
+
 Future Trends in HPC Seminar - Shallow Water Equation Solvers with Julia
 
 This is a translation of elements of the Shallow Water Equation code from
