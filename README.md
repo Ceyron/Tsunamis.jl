@@ -7,6 +7,8 @@ Future Trends in HPC Seminar - Shallow Water Equation Solvers with Julia
 This is a translation of elements of the Shallow Water Equation code from
 https://github.com/TUM-I5/SWE.
 
+Read the ![corresponding paper](https://github.com/Ceyron/Tsunamis.jl/files/7160982/ft-hpc-julia.pdf)
+
 ## Installing Dependencies
 
 In a Julia REPL environment run
